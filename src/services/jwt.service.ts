@@ -57,10 +57,15 @@ export class JwtService {
    */
   verifyToken(token: string): CustomJwtPayload | null {
     try {
-      return jwt.verify(token, JWT_SECRET) as CustomJwtPayload
+      console.log('Verifying token, JWT_SECRET exists:', !!JWT_SECRET);
+      console.log('Token first 15 chars:', token.substring(0, 15) + '...');
+      
+      const decoded = jwt.verify(token, JWT_SECRET) as CustomJwtPayload;
+      console.log('Token successfully verified, payload:', decoded);
+      return decoded;
     } catch (error) {
-      console.error('Token verification error:', error)
-      return null
+      console.error('Token verification failed:', error);
+      return null;
     }
   }
 
@@ -73,19 +78,34 @@ export class JwtService {
     const accessToken = this.generateAccessToken(userId)
     const refreshToken = this.generateRefreshToken(userId)
     
+    console.log('Setting cookies for userId:', userId);
+    console.log('Access token first 15 chars:', accessToken.substring(0, 15) + '...');
+    
+    // PENTING: SameSite=None HARUS disertai dengan Secure=true
+    // Bahkan di environment development, kecuali kita gunakan SameSite=Lax
+    const cookieOptions = {
+      httpOnly: true,
+      secure: true,     // HARUS true ketika sameSite: 'none'
+      sameSite: 'none' as const, // 'none' diperlukan untuk cross-site
+      path: '/' // Ensure cookie is available throughout the site
+    };
+    
+    // CRITICAL DEBUG - Log semua cookie settings
+    console.log('CRITICAL: Cookie setting yang digunakan:', cookieOptions);
+    
+    console.log('Cookie options:', cookieOptions);
+    
     // Set access token cookie
     cookie.access_token.set({
       value: accessToken,
-      httpOnly: true,
-      secure: process.env.ENVIRONMENT !== 'dev',
+      ...cookieOptions,
       maxAge: 60 * 60 // 1 hour in seconds
-    })
+    });
     
     // Set refresh token cookie
     cookie.refresh_token.set({
       value: refreshToken,
-      httpOnly: true,
-      secure: process.env.ENVIRONMENT !== 'dev',
+      ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 // 7 days in seconds
     })
   }
@@ -106,17 +126,45 @@ export class JwtService {
    */
   getUserIdFromCookies(request: Request): string | null {
     try {
+      // Debug log request headers
+      const allHeaders: Record<string, string> = {};
+      request.headers.forEach((value, key) => {
+        allHeaders[key] = value;
+      });
+      console.log('Request headers:', allHeaders);
+      
+      // Get cookie header
       const cookies = request.headers.get('cookie') || ''
+      console.log('Raw cookies string:', cookies);
+      
+      // Find access token
       const tokenMatch = cookies.match(/access_token=([^;]+)/)
-      if (!tokenMatch) return null
+      console.log('Token match result:', tokenMatch);
+      
+      if (!tokenMatch) {
+        console.log('No access_token found in cookies');
+        return null;
+      }
       
       const token = tokenMatch[1]
-      if (!token) return null
+      console.log('Extracted token:', token.substring(0, 15) + '...');
       
+      if (!token) {
+        console.log('Token is empty');
+        return null;
+      }
+      
+      // Verify token
       const payload = this.verifyToken(token)
-      if (!payload || payload.tokenType !== 'access') return null
+      console.log('Token payload:', payload);
       
-      return payload.userId
+      if (!payload || payload.tokenType !== 'access') {
+        console.log('Invalid token payload or wrong token type');
+        return null;
+      }
+      
+      console.log('Successfully extracted userId:', payload.userId);
+      return payload.userId;
     } catch (error) {
       console.error('Error getting user ID from cookies:', error)
       return null
@@ -130,22 +178,43 @@ export class JwtService {
    */
   refreshAccessToken(cookie: any): boolean {
     try {
+      console.log('Attempting to refresh token');
       const refreshToken = cookie.refresh_token.value
+      console.log('Refresh token exists:', !!refreshToken);
+      
       if (!refreshToken) return false
       
       const payload = this.verifyToken(refreshToken)
-      if (!payload || payload.tokenType !== 'refresh') return false
+      console.log('Refresh token payload:', payload);
+      
+      if (!payload || payload.tokenType !== 'refresh') {
+        console.log('Invalid refresh token or wrong token type');
+        return false;
+      }
       
       // Generate a new access token
       const accessToken = this.generateAccessToken(payload.userId)
+      console.log('Generated new access token for userId:', payload.userId);
+      
+      // Cookie options - same as in setTokenCookies
+      const isProd = process.env.ENVIRONMENT === 'production';
+      const cookieOptions = {
+        httpOnly: true,
+        secure: isProd,     // true hanya jika di production
+        sameSite: 'none' as const, // 'none' diperlukan untuk cross-site
+        path: '/' // Ensure cookie is available throughout the site
+      };
+      
+      console.log('CRITICAL: Refresh cookie settings:', cookieOptions);
       
       // Set the new access token cookie
       cookie.access_token.set({
         value: accessToken,
-        httpOnly: true,
-        secure: process.env.ENVIRONMENT !== 'dev',
+        ...cookieOptions,
         maxAge: 60 * 60 // 1 hour in seconds
-      })
+      });
+      
+      console.log('Access token refreshed successfully');
       
       return true
     } catch (error) {

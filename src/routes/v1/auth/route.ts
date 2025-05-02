@@ -1,8 +1,8 @@
 import { Elysia, t } from 'elysia'
-import { authService } from '../../services/auth.service'
-import { userRepository } from '../../repositories/user.repository'
-import { authMiddleware } from '../../middlewares/auth.middleware'
-import { jwtService } from '../../services/jwt.service'
+import { authService } from '../../../services/auth.service'
+import { userRepository } from '../../../repositories/user.repository'
+import { authMiddleware } from '../../../middlewares/auth.middleware'
+import { jwtService } from '../../../services/jwt.service'
 
 // Auth routes for handling authentication
 export const authRoutes = new Elysia({ prefix: '/auth' })
