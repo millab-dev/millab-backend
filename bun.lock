@@ -8,8 +8,10 @@
         "elysia": "latest",
         "firebase": "^10.8.0",
         "firebase-admin": "^12.0.0",
+        "jsonwebtoken": "^9.0.2",
       },
       "devDependencies": {
+        "@types/jsonwebtoken": "^9.0.9",
         "bun-types": "latest",
         "vitest": "^3.1.2",
       },
