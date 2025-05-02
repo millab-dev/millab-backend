@@ -2,14 +2,21 @@
   "name": "millab-backend",
   "version": "1.0.50",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --target bun --outdir build",
+    "start": "bun build/index.js"
   },
   "dependencies": {
-    "elysia": "latest"
+    "@elysiajs/cors": "^1.2.0",
+    "elysia": "latest",
+    "firebase": "^10.8.0",
+    "firebase-admin": "^12.0.0"
   },
   "devDependencies": {
-    "bun-types": "latest"
+    "bun-types": "latest",
+    "vitest": "^3.1.2"
   },
   "module": "src/index.js"
 }
