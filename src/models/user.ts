@@ -11,7 +11,6 @@ export interface User {
   socializationLocation: string
   email: string
   phoneNumber: string
-  photoURL?: string
   createdAt: string
   updatedAt: string
 }
@@ -28,6 +27,5 @@ export interface CreateUserData {
   socializationLocation: string
   email: string
   phoneNumber: string
-  photoURL?: string
   password: string // Password is included here but not in the User model
 }

@@ -50,7 +50,6 @@ export class UserRepository {
         socializationLocation: userData.socializationLocation,
         email: userData.email,
         phoneNumber: userData.phoneNumber,
-        photoURL: userData.photoURL || undefined,
         createdAt: timestamp,
         updatedAt: timestamp
       }
