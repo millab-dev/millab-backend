@@ -4,7 +4,6 @@
 export interface User {
   id: string
   name: string
-  username: string
   gender: 'Male' | 'Female'
   birthplace: string
   birthdate: string
@@ -20,7 +19,6 @@ export interface User {
  */
 export interface CreateUserData {
   name: string
-  username: string
   gender: 'Male' | 'Female'
   birthplace: string
   birthdate: string

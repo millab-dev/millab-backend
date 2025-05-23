@@ -131,15 +131,12 @@ export class JwtService {
       request.headers.forEach((value, key) => {
         allHeaders[key] = value;
       });
-      console.log('Request headers:', allHeaders);
-      
       // Get cookie header
       const cookies = request.headers.get('cookie') || ''
-      console.log('Raw cookies string:', cookies);
+      console.log('Cookies exists:', !!cookies)
       
       // Find access token
       const tokenMatch = cookies.match(/access_token=([^;]+)/)
-      console.log('Token match result:', tokenMatch);
       
       if (!tokenMatch) {
         console.log('No access_token found in cookies');
@@ -147,7 +144,6 @@ export class JwtService {
       }
       
       const token = tokenMatch[1]
-      console.log('Extracted token:', token.substring(0, 15) + '...');
       
       if (!token) {
         console.log('Token is empty');

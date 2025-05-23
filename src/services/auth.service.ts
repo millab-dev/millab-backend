@@ -24,15 +24,6 @@ export class AuthService {
         }
       }
       
-      // Check if username already exists
-      const existingUserByUsername = await userRepository.getUserByUsername(userData.username)
-      if (existingUserByUsername) {
-        return {
-          success: false,
-          error: 'Username is already taken'
-        }
-      }
-      
       // Create the user
       const user = await userRepository.createUser(userData)
       if (!user) {
@@ -195,6 +186,82 @@ export class AuthService {
     if (!userId) return null
     
     return await userRepository.getUserById(userId)
+  }
+  
+  /**
+   * Change user password
+   * @param userId User ID
+   * @param currentPassword Current password
+   * @param newPassword New password
+   * @returns Success or error response
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<ApiResponse> {
+    try {
+      if (!auth) {
+        return {
+          success: false,
+          error: 'Authentication service not initialized'
+        }
+      }
+      
+      // Firebase Admin SDK doesn't support verifying passwords directly
+      // So we need to use the Firebase Auth REST API to verify the current password
+      const apiKey = process.env.FIREBASE_API_KEY
+      if (!apiKey) {
+        console.error('Firebase API key is not configured')
+        return {
+          success: false,
+          error: 'Authentication configuration error'
+        }
+      }
+      
+      // Get user email from user ID
+      const user = await userRepository.getUserById(userId)
+      if (!user) {
+        return {
+          success: false,
+          error: 'User not found'
+        }
+      }
+      
+      // 1. Verify current password using Firebase Auth REST API
+      const verifyResponse = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: user.email,
+            password: currentPassword,
+            returnSecureToken: true
+          })
+        }
+      )
+      
+      if (!verifyResponse.ok) {
+        // Current password is incorrect
+        return {
+          success: false,
+          error: 'Current password is incorrect'
+        }
+      }
+      
+      // 2. Update password using Firebase Admin SDK
+      await auth.updateUser(userId, {
+        password: newPassword
+      })
+      
+      return {
+        success: true,
+        message: 'Password changed successfully'
+      }
+    } catch (error) {
+      console.error('Change password error:', error)
+      return {
+        success: false,
+        error: 'Failed to change password'
+      }
+    }
   }
   
   /**
