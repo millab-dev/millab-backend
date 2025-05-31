@@ -1,5 +1,5 @@
 import { initializeApp, cert, ServiceAccount } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
+import { getFirestore, initializeFirestore } from 'firebase-admin/firestore'
 import { getAuth } from 'firebase-admin/auth'
 import { getStorage } from 'firebase-admin/storage'
 
@@ -48,8 +48,8 @@ try {
 
 // Export Firebase services
 // These will be undefined if Firebase failed to initialize
-export const db = app ? getFirestore(app) : undefined
-export const auth = app ? getAuth(app) : undefined
+export const db = app ? initializeFirestore(app,{preferRest:true}) : undefined
+export const auth = app ? getAuth(app,) : undefined
 export const storage = app ? getStorage(app) : undefined
 
 export default app
