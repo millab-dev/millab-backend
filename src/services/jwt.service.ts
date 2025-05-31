@@ -82,11 +82,14 @@ export class JwtService {
     console.log('Access token first 15 chars:', accessToken.substring(0, 15) + '...');
 
    
+    // Cookie options dengan pengaturan yang tepat untuk proxy Next.js
     const cookieOptions = {
         httpOnly: true,
-        secure: true,     // HARUS true ketika sameSite: 'none'
+        secure: true,     // HARUS true di production
         sameSite: 'none' as const, // 'none' diperlukan untuk cross-site
-        path: '/' // Ensure cookie is available throughout the site
+        path: '/', // Ensure cookie is available throughout the site
+        // Domain tidak perlu diatur karena kita menggunakan proxy di Next.js
+        // yang membuat semua request melewati domain frontend
       };
     
     // CRITICAL DEBUG - Log semua cookie settings
