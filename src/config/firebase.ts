@@ -49,7 +49,7 @@ try {
 // Export Firebase services
 // These will be undefined if Firebase failed to initialize
 export const db = app ? initializeFirestore(app,{preferRest:true}) : undefined
-export const auth = app ? getAuth(app,) : undefined
+export const auth = app ? getAuth(app) : undefined
 export const storage = app ? getStorage(app) : undefined
 
 export default app
