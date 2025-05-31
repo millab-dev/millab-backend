@@ -8,7 +8,8 @@ import { authMiddleware } from "./middlewares/auth.middleware";
 // Load environment variables
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8080;
 
-// Parsing origins dari environment variable yang dipisahkan koma
+
+// Parsing origins from environment variable separated by commas
 const corsOrigins = process.env.CORS_ORIGIN ? 
   process.env.CORS_ORIGIN.split(',') : 
   ["http://localhost:3000"];
@@ -16,7 +17,7 @@ const corsOrigins = process.env.CORS_ORIGIN ?
 const app = new Elysia()
   // Global middleware
   .use(cors({
-    origin: corsOrigins, // Langsung gunakan array origins
+    origin: corsOrigins, // Use origins from environment variable
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
     exposeHeaders: ['Set-Cookie'], // Expose Set-Cookie header
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],

@@ -16,6 +16,7 @@ export class AuthService {
   async register(userData: CreateUserData): Promise<ApiResponse<User>> {
     try {
       // Check if email already exists
+      console.log("REGISTERING USER")
       const existingUserByEmail = await userRepository.getUserByEmail(userData.email)
       if (existingUserByEmail) {
         return {

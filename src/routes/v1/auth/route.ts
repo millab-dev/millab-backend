@@ -8,6 +8,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   
   // Register a new user
   .post('/register', async ({ body }) => {
+    console.log("[route] REGISTERING USER")
     return await authService.register(body)
   }, {
     body: t.Object({

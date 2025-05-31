@@ -139,7 +139,7 @@ export class JwtService {
       const tokenMatch = cookies.match(/access_token=([^;]+)/)
       
       if (!tokenMatch) {
-        console.log('No access_token found in cookies');
+        // console.log('No access_token found in cookies');
         return null;
       }
       
