@@ -80,32 +80,14 @@ export class JwtService {
     
     console.log('Setting cookies for userId:', userId);
     console.log('Access token first 15 chars:', accessToken.substring(0, 15) + '...');
-    
-    // PENTING: SameSite=None HARUS disertai dengan Secure=true
-    // Bahkan di environment development, kecuali kita gunakan SameSite=Lax
-    
-    // Set cookie options based on environment
-    const isProduction = process.env.ENVIRONMENT === 'production';
-    const isDev = process.env.ENVIRONMENT === 'dev';
-    
-    // For development environment on localhost
-    let cookieOptions;
-    if (isDev) {
-      cookieOptions = {
-        httpOnly: true,
-        secure: false,     // Allow cookies on non-HTTPS localhost
-        sameSite: 'lax' as const, // 'lax' is more permissive for development
-        path: '/' // Ensure cookie is available throughout the site
-      };
-    } else {
-      // For production or other environments
-      cookieOptions = {
+
+   
+    const cookieOptions = {
         httpOnly: true,
         secure: true,     // HARUS true ketika sameSite: 'none'
         sameSite: 'none' as const, // 'none' diperlukan untuk cross-site
         path: '/' // Ensure cookie is available throughout the site
       };
-    }
     
     // CRITICAL DEBUG - Log semua cookie settings
     console.log('CRITICAL: Cookie setting yang digunakan:', cookieOptions);
