@@ -12,12 +12,16 @@ try {
     console.warn('Firebase service account environment variables are not set.')
     console.warn('Firebase Admin SDK initialization skipped.')
   } else {
+    // Process the private key to replace \n with actual newlines
+    const privateKey = process.env.FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY || ''
+    const formattedPrivateKey = privateKey.replace(/\\n/g, '\n')
+    
     // Construct service account object from environment variables
     const serviceAccount = {
       type: process.env.FIREBASE_SERVICE_ACCOUNT_TYPE || '',
       project_id: process.env.FIREBASE_SERVICE_ACCOUNT_PROJECT_ID || '',
       private_key_id: process.env.FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY_ID || '',
-      private_key: process.env.FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY || '',
+      private_key: formattedPrivateKey,
       client_email: process.env.FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL || '',
       client_id: process.env.FIREBASE_SERVICE_ACCOUNT_CLIENT_ID || '',
       auth_uri: process.env.FIREBASE_SERVICE_ACCOUNT_AUTH_URI || '',
