@@ -23,7 +23,6 @@ const app = new Elysia()
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     credentials: true // Allow credentials (cookies)
   }))
-  .use(authMiddleware)
   // Mount all API routes
   .use(apiRoutes)
   

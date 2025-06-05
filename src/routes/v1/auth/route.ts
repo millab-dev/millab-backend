@@ -40,6 +40,12 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     return authService.logout(cookie)
   })
   
+  // Refresh token endpoint
+  .get('/refresh', ({ cookie }) => {
+    console.log('Explicit token refresh requested');
+    return authService.refreshToken(cookie);
+  })
+  
   // Change password
   .post('/change-password', async ({ body, request }) => {
     // Get user ID from JWT token in cookies

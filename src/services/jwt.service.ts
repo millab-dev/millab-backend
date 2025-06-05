@@ -194,6 +194,10 @@ export class JwtService {
       const accessToken = this.generateAccessToken(payload.userId)
       console.log('Generated new access token for userId:', payload.userId);
       
+      // Also generate a new refresh token to extend the session
+      const newRefreshToken = this.generateRefreshToken(payload.userId)
+      console.log('Generated new refresh token for userId:', payload.userId);
+      
       // Cookie options - same as in setTokenCookies
       const isProd = process.env.ENVIRONMENT === 'production';
       const cookieOptions = {
@@ -211,8 +215,15 @@ export class JwtService {
         ...cookieOptions,
         maxAge: 60 * 60 // 1 hour in seconds
       });
+
+      // Also set the new refresh token to extend the session
+      cookie.refresh_token.set({
+        value: newRefreshToken,
+        ...cookieOptions,
+        maxAge: 7 * 24 * 60 * 60 // 7 days in seconds
+      });
       
-      console.log('Access token refreshed successfully');
+      console.log('Access and refresh tokens refreshed successfully');
       
       return true
     } catch (error) {
