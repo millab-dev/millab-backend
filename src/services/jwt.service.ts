@@ -199,10 +199,9 @@ export class JwtService {
       console.log('Generated new refresh token for userId:', payload.userId);
       
       // Cookie options - same as in setTokenCookies
-      const isProd = process.env.ENVIRONMENT === 'production';
       const cookieOptions = {
         httpOnly: true,
-        secure: isProd,     // true hanya jika di production
+        secure: true,     // HARUS true untuk SameSite=None
         sameSite: 'none' as const, // 'none' diperlukan untuk cross-site
         path: '/' // Ensure cookie is available throughout the site
       };
