@@ -1,75 +1,133 @@
-import { Router } from "express";
-import { UserScoreService } from "../../../services/userScore.service";
 
-const router = Router();
+import { UserScoreService } from "../../../services/userScore.service";
+import Elysia, { t } from "elysia";
+
 const userScoreService = new UserScoreService();
 
-// Get user score
-router.get("/:userId", async (req, res) => {
-    try {
-        const userScore = await userScoreService.getUserScore(req.params.userId);
-        res.json(userScore);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to get user score" });
-    }
-});
-
-// Update user score
-router.put("/:userId", async (req, res) => {
-    try {
-        const { score } = req.body;
-        if (typeof score !== "number") {
-            return res.status(400).json({ error: "Score must be a number" });
+export const userScoreRoutes = new Elysia({ prefix: "/user-scores" })
+    // Get user score
+    .get("/:userId", async ({ params, set }) => {
+        try {
+            const userScore = await userScoreService.getUserScore(params.userId);
+            set.status = 200;
+            return {
+                success: true,
+                message: "User score fetched successfully",
+                data: userScore,
+            };
+        } catch (error) {
+            set.status = 500;
+            return {
+                success: false,
+                message: "Failed to get user score",
+                data: null,
+            };
         }
-        const userScore = await userScoreService.updateUserScore(req.params.userId, score);
-        res.json(userScore);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to update user score" });
-    }
-});
+    }, {
+    })
 
-// Add score to user
-router.post("/:userId/add", async (req, res) => {
-    try {
-        const { score } = req.body;
-        if (typeof score !== "number") {
-            return res.status(400).json({ error: "Score must be a number" });
+    // Update user score
+    .put("/:userId", async ({ params, body, set }) => {
+        try {
+            const { score } = body;
+            if (typeof score !== "number") {
+                set.status = 400;
+                return {
+                    success: false,
+                    message: "Score must be a number",
+                    data: null,
+                };
+            }
+            const userScore = await userScoreService.updateUserScore(params.userId, score);
+            set.status = 200;
+            return {
+                success: true,
+                message: "User score updated successfully",
+                data: userScore,
+            };
+        } catch (error) {
+            set.status = 500;
+            return {
+                success: false,
+                message: "Failed to update user score",
+                data: null,
+            };
         }
-        const userScore = await userScoreService.addScore(req.params.userId, score);
-        res.json(userScore);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to add score" });
-    }
-});
+    }, {
+        body: t.Object({
+            score: t.Number(),
+        }),
+    })
 
-// Get all user scores
-router.get("/", async (req, res) => {
-    try {
-        const userScores = await userScoreService.getAllUserScores();
-        res.json(userScores);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to get all user scores" });
-    }
-});
+    // Add score to user
+    .post("/:userId/add", async ({ params, body, set }) => {
+        try {
+            const { score } = body;
+            if (typeof score !== "number") {
+                set.status = 400;
+                return {
+                    success: false,
+                    message: "Score must be a number",
+                    data: null,
+                };
+            }
+            const userScore = await userScoreService.addScore(params.userId, score);
+            set.status = 200;
+            return {
+                success: true,
+                message: "Score added successfully",
+                data: userScore,
+            };
+        } catch (error) {
+            set.status = 500;
+            return {
+                success: false,
+                    message: "Failed to add score",
+                data: null,
+            };
+        }
+    }, {
+        body: t.Object({
+            score: t.Number(),
+        }),
+    })
 
-// Delete user score
-router.delete("/:userId", async (req, res) => {
-    try {
-        await userScoreService.deleteUserScore(req.params.userId);
-        res.status(204).send();
-    } catch (error) {
-        res.status(500).json({ error: "Failed to delete user score" });
-    }
-});
+    // Get all user scores
+    .get("/", async ({ set }) => {
+        try {
+            const userScores = await userScoreService.getAllUserScores();
+            set.status = 200;
+            return {
+                success: true,
+                message: "User scores fetched successfully",
+                data: userScores,
+            };
+        } catch (error) {
+            set.status = 500;
+            return {
+                success: false,
+                message: "Failed to delete user score",
+                data: null,
+            };
+        }
+    }, {
+    })
 
-// Reset all scores
-router.post("/reset", async (req, res) => {
-    try {
-        await userScoreService.resetAllScores();
-        res.status(200).json({ message: "All scores have been reset" });
-    } catch (error) {
-        res.status(500).json({ error: "Failed to reset scores" });
-    }
-});
-
-export default router; 
+    // Reset all scores
+    .post("/reset", async ({ set }) => {
+        try {
+            await userScoreService.resetAllScores();
+            set.status = 200;
+            return {
+                success: true,
+                message: "All scores have been reset",
+            };
+        } catch (error) {
+            set.status = 500;
+            return {
+                success: false,
+                message: "Failed to reset scores",
+                data: null,
+            };
+        }
+    })
