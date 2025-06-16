@@ -10,20 +10,46 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Trigger Deployment via pendeploy-simple
+      - name: Prepare Deployment Config with Dynamic Image Tag
         env:
           DEPLOYMENT_CONFIG: ${{ secrets.DEPLOYMENT_CONFIG }}
         run: |
+          # Extract repository name without owner
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          
+          # Create dynamic image tag: reponame:commitid
+          DYNAMIC_IMAGE_TAG="${REPO_NAME}:${{ github.sha }}"
+          
+          echo "🏷️ Dynamic image tag: $DYNAMIC_IMAGE_TAG"
+          
+          # Parse JSON and replace IMAGE_REGISTRY
+          MODIFIED_CONFIG=$(echo "$DEPLOYMENT_CONFIG" | jq --arg tag "$DYNAMIC_IMAGE_TAG" '.IMAGE_REGISTRY = $tag')
+          
+          # Save modified config for next step
+          echo "$MODIFIED_CONFIG" > deployment_config.json
+          
+          # Debug: show the modified config (optional, remove in production)
+          echo "📋 Modified deployment config:"
+          echo "$MODIFIED_CONFIG" | jq .
+        
+      - name: Trigger Deployment via pendeploy-simple
+        run: |
           curl -X POST \
             -H "Content-Type: application/json" \
-            -d "$DEPLOYMENT_CONFIG" \
+            -d @deployment_config.json \
             https://api.millab-kubernetes.isacitra.com/create-deployment
         
       - name: Deployment Summary
         run: |
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          DYNAMIC_IMAGE_TAG="${REPO_NAME}:${{ github.sha }}"
+          
           echo "🚀 Backend deployment triggered successfully!"
           echo "Repository: ${{ github.repository }}"
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
-          echo "Image: localhost:5000/millab-backend:${{ github.sha }}"
+          echo "Image: $DYNAMIC_IMAGE_TAG"
           echo "Expected URL: https://api.millabindonesia.com"
+          
+          # Cleanup
+          rm -f deployment_config.json
