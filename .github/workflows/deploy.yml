@@ -1,0 +1,29 @@
+name: Deploy Backend to Kubernetes via pendeploy-simple
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Trigger Deployment via pendeploy-simple
+        env:
+          DEPLOYMENT_CONFIG: ${{ secrets.DEPLOYMENT_CONFIG }}
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "$DEPLOYMENT_CONFIG" \
+            https://api.millab-kubernetes.isacitra.com/create-deployment
+        
+      - name: Deployment Summary
+        run: |
+          echo "🚀 Backend deployment triggered successfully!"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Image: localhost:5000/millab-backend:${{ github.sha }}"
+          echo "Expected URL: https://api.millabindonesia.com"
