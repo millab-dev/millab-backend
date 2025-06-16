@@ -17,8 +17,8 @@ jobs:
           # Extract repository name without owner
           REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
           
-          # Create dynamic image tag: reponame:commitid
-          DYNAMIC_IMAGE_TAG="${REPO_NAME}:${{ github.sha }}"
+          # Create dynamic image tag: localhost:5000/reponame:commitid
+          DYNAMIC_IMAGE_TAG="localhost:5000/${REPO_NAME}:${{ github.sha }}"
           
           echo "🏷️ Dynamic image tag: $DYNAMIC_IMAGE_TAG"
           
@@ -27,10 +27,6 @@ jobs:
           
           # Save modified config for next step
           echo "$MODIFIED_CONFIG" > deployment_config.json
-          
-          # Debug: show the modified config (optional, remove in production)
-          echo "📋 Modified deployment config:"
-          echo "$MODIFIED_CONFIG" | jq .
         
       - name: Trigger Deployment via pendeploy-simple
         run: |
@@ -42,7 +38,7 @@ jobs:
       - name: Deployment Summary
         run: |
           REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
-          DYNAMIC_IMAGE_TAG="${REPO_NAME}:${{ github.sha }}"
+          DYNAMIC_IMAGE_TAG="localhost:5000/${REPO_NAME}:${{ github.sha }}"
           
           echo "🚀 Backend deployment triggered successfully!"
           echo "Repository: ${{ github.repository }}"
