@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Prepare Deployment Config with Dynamic Image Tag
+      - name: Prepare and Send Deployment Request
         env:
           DEPLOYMENT_CONFIG: ${{ secrets.DEPLOYMENT_CONFIG }}
         run: |
@@ -22,17 +22,74 @@ jobs:
           
           echo "🏷️ Dynamic image tag: $DYNAMIC_IMAGE_TAG"
           
-          # Parse JSON and replace IMAGE_REGISTRY
-          MODIFIED_CONFIG=$(echo "$DEPLOYMENT_CONFIG" | jq --arg tag "$DYNAMIC_IMAGE_TAG" '.IMAGE_REGISTRY = $tag')
+          # Parse JSON dan extract semua keys
+          echo "📋 Parsing deployment config..."
           
-          # Save modified config for next step
-          echo "$MODIFIED_CONFIG" > deployment_config.json
-        
-      - name: Trigger Deployment via pendeploy-simple
-        run: |
+          # Validate JSON format first
+          echo "$DEPLOYMENT_CONFIG" | jq . > /dev/null || (echo "❌ Invalid JSON format!" && exit 1)
+          
+          # Extract all keys dari JSON config
+          PORT=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.PORT // "8080"')
+          ENVIRONMENT=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.ENVIRONMENT // "production"')
+          JWT_SECRET=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.JWT_SECRET')
+          JWT_ACCESS_EXPIRY=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.JWT_ACCESS_EXPIRY // "1h"')
+          JWT_REFRESH_EXPIRY=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.JWT_REFRESH_EXPIRY // "7d"')
+          FIREBASE_API_KEY=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_API_KEY')
+          FIREBASE_AUTH_DOMAIN=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_AUTH_DOMAIN')
+          FIREBASE_PROJECT_ID=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_PROJECT_ID')
+          FIREBASE_STORAGE_BUCKET=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_STORAGE_BUCKET')
+          FIREBASE_MESSAGING_SENDER_ID=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_MESSAGING_SENDER_ID')
+          FIREBASE_APP_ID=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_APP_ID')
+          FIREBASE_MEASUREMENT_ID=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_MEASUREMENT_ID')
+          FIREBASE_SERVICE_ACCOUNT_TYPE=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_SERVICE_ACCOUNT_TYPE')
+          FIREBASE_SERVICE_ACCOUNT_PROJECT_ID=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_SERVICE_ACCOUNT_PROJECT_ID')
+          FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY_ID=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY_ID')
+          FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY')
+          FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL')
+          FIREBASE_SERVICE_ACCOUNT_CLIENT_ID=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_SERVICE_ACCOUNT_CLIENT_ID')
+          FIREBASE_SERVICE_ACCOUNT_AUTH_URI=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_SERVICE_ACCOUNT_AUTH_URI')
+          FIREBASE_SERVICE_ACCOUNT_TOKEN_URI=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_SERVICE_ACCOUNT_TOKEN_URI')
+          FIREBASE_SERVICE_ACCOUNT_AUTH_PROVIDER_X509_CERT_URL=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_SERVICE_ACCOUNT_AUTH_PROVIDER_X509_CERT_URL')
+          FIREBASE_SERVICE_ACCOUNT_CLIENT_X509_CERT_URL=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_SERVICE_ACCOUNT_CLIENT_X509_CERT_URL')
+          FIREBASE_SERVICE_ACCOUNT_UNIVERSE_DOMAIN=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.FIREBASE_SERVICE_ACCOUNT_UNIVERSE_DOMAIN')
+          CORS_ORIGIN=$(echo "$DEPLOYMENT_CONFIG" | jq -r '.CORS_ORIGIN')
+          
+          echo "✅ Successfully parsed deployment config"
+          echo "📡 Sending deployment request..."
+          
+          # Send request langsung dengan curl
           curl -X POST \
             -H "Content-Type: application/json" \
-            -d @deployment_config.json \
+            -d "{
+              \"githubUrl\": \"https://github.com/${{ github.repository }}\",
+              \"env\": {
+                \"IMAGE_REGISTRY\": \"$DYNAMIC_IMAGE_TAG\",
+                \"PORT\": \"$PORT\",
+                \"ENVIRONMENT\": \"$ENVIRONMENT\", 
+                \"JWT_SECRET\": \"$JWT_SECRET\",
+                \"JWT_ACCESS_EXPIRY\": \"$JWT_ACCESS_EXPIRY\",
+                \"JWT_REFRESH_EXPIRY\": \"$JWT_REFRESH_EXPIRY\",
+                \"FIREBASE_API_KEY\": \"$FIREBASE_API_KEY\",
+                \"FIREBASE_AUTH_DOMAIN\": \"$FIREBASE_AUTH_DOMAIN\",
+                \"FIREBASE_PROJECT_ID\": \"$FIREBASE_PROJECT_ID\",
+                \"FIREBASE_STORAGE_BUCKET\": \"$FIREBASE_STORAGE_BUCKET\",
+                \"FIREBASE_MESSAGING_SENDER_ID\": \"$FIREBASE_MESSAGING_SENDER_ID\",
+                \"FIREBASE_APP_ID\": \"$FIREBASE_APP_ID\",
+                \"FIREBASE_MEASUREMENT_ID\": \"$FIREBASE_MEASUREMENT_ID\",
+                \"FIREBASE_SERVICE_ACCOUNT_TYPE\": \"$FIREBASE_SERVICE_ACCOUNT_TYPE\",
+                \"FIREBASE_SERVICE_ACCOUNT_PROJECT_ID\": \"$FIREBASE_SERVICE_ACCOUNT_PROJECT_ID\",
+                \"FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY_ID\": \"$FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY_ID\",
+                \"FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY\": \"$FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY\",
+                \"FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL\": \"$FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL\",
+                \"FIREBASE_SERVICE_ACCOUNT_CLIENT_ID\": \"$FIREBASE_SERVICE_ACCOUNT_CLIENT_ID\",
+                \"FIREBASE_SERVICE_ACCOUNT_AUTH_URI\": \"$FIREBASE_SERVICE_ACCOUNT_AUTH_URI\",
+                \"FIREBASE_SERVICE_ACCOUNT_TOKEN_URI\": \"$FIREBASE_SERVICE_ACCOUNT_TOKEN_URI\",
+                \"FIREBASE_SERVICE_ACCOUNT_AUTH_PROVIDER_X509_CERT_URL\": \"$FIREBASE_SERVICE_ACCOUNT_AUTH_PROVIDER_X509_CERT_URL\",
+                \"FIREBASE_SERVICE_ACCOUNT_CLIENT_X509_CERT_URL\": \"$FIREBASE_SERVICE_ACCOUNT_CLIENT_X509_CERT_URL\",
+                \"FIREBASE_SERVICE_ACCOUNT_UNIVERSE_DOMAIN\": \"$FIREBASE_SERVICE_ACCOUNT_UNIVERSE_DOMAIN\",
+                \"CORS_ORIGIN\": \"$CORS_ORIGIN\"
+              }
+            }" \
             https://api.millab-kubernetes.isacitra.com/create-deployment
         
       - name: Deployment Summary
@@ -46,6 +103,3 @@ jobs:
           echo "Commit: ${{ github.sha }}"
           echo "Image: $DYNAMIC_IMAGE_TAG"
           echo "Expected URL: https://api.millabindonesia.com"
-          
-          # Cleanup
-          rm -f deployment_config.json
