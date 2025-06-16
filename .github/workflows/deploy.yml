@@ -12,16 +12,8 @@ jobs:
     steps:
       - name: Trigger Deployment via pendeploy-simple
         env:
-          DEPLOYMENT_TEMPLATE: ${{ secrets.DEPLOYMENT_TEMPLATE }}
+          DEPLOYMENT_CONFIG: ${{ secrets.DEPLOYMENT_CONFIG }}
         run: |
-          # Replace template placeholders with actual GitHub Actions variables
-          DEPLOYMENT_CONFIG=$(echo "$DEPLOYMENT_TEMPLATE" | \
-            sed "s/GITHUB_REPOSITORY_PLACEHOLDER/${{ github.repository }}/g" | \
-            sed "s/GITHUB_SHA_PLACEHOLDER/${{ github.sha }}/g")
-          
-          echo "🚀 Deploying commit: ${{ github.sha }}"
-          echo "📦 Repository: ${{ github.repository }}"
-          
           curl -X POST \
             -H "Content-Type: application/json" \
             -d "$DEPLOYMENT_CONFIG" \
@@ -34,4 +26,4 @@ jobs:
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
           echo "Image: localhost:5000/millab-backend:${{ github.sha }}"
-          echo "Expected URL: https://api.millab.isacitra.com"
+          echo "Expected URL: https://api.millabindonesia.com"
