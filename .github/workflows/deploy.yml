@@ -13,6 +13,7 @@ jobs:
       - name: Trigger Deployment via pendeploy-simple
         env:
           DEPLOYMENT_CONFIG: ${{ secrets.DEPLOYMENT_CONFIG }}
+          PENDEPLOY_API_KEY: ${{ secrets.API_KEY }}
         run: |
           # Create dynamic image tag
           REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
@@ -32,9 +33,16 @@ jobs:
           echo "✅ Successfully updated deployment config"
           echo "📡 Sending deployment request..."
           
-          # Send the updated config
+          # Check if API key is set
+          if [ -z "$PENDEPLOY_API_KEY" ]; then
+            echo "❌ ERROR: PENDEPLOY_API_KEY is not set in GitHub secrets"
+            exit 1
+          fi
+          
+          # Send the updated config with API key authentication
           curl -X POST \
             -H "Content-Type: application/json" \
+            -H "X-API-Key: $PENDEPLOY_API_KEY" \
             -d "$UPDATED_CONFIG" \
             https://api.millab-kubernetes.isacitra.com/create-deployment
         
