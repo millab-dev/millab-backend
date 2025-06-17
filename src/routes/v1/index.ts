@@ -3,6 +3,8 @@ import { healthRoutes } from './health/route'
 import { authRoutes } from './auth/route'
 import { moduleRoutes } from './modules/route'
 import { readingStateRoutes } from './reading-state/route'
+import { quizRoutes } from './quiz/route'
+import { userScoreRoutes } from './userScore/route'
 
 // Combine all v1 routes
 export const v1Routes = new Elysia({ prefix: '/v1' })
@@ -10,3 +12,5 @@ export const v1Routes = new Elysia({ prefix: '/v1' })
   .use(authRoutes)
   .use(moduleRoutes)
   .use(readingStateRoutes)
+  .use(quizRoutes)
+  .use(userScoreRoutes)

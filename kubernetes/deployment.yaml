@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: millab-backend
+  namespace: default
+  labels:
+    app: millab-backend
+spec:
+  replicas: 1  # Initial replicas, HPA will manage scaling
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: millab-backend
+  template:
+    metadata:
+      labels:
+        app: millab-backend
+    spec:
+      containers:
+      - name: millab-backend
+        image: ${IMAGE_REGISTRY}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: PORT
+          value: "8080"
+        - name: ENVIRONMENT
+          value: "production"
+        - name: JWT_SECRET
+          value: "${JWT_SECRET}"
+        - name: JWT_ACCESS_EXPIRY
+          value: "${JWT_ACCESS_EXPIRY}"
+        - name: JWT_REFRESH_EXPIRY
+          value: "${JWT_REFRESH_EXPIRY}"
+        - name: FIREBASE_API_KEY
+          value: "${FIREBASE_API_KEY}"
+        - name: FIREBASE_AUTH_DOMAIN
+          value: "${FIREBASE_AUTH_DOMAIN}"
+        - name: FIREBASE_PROJECT_ID
+          value: "${FIREBASE_PROJECT_ID}"
+        - name: FIREBASE_STORAGE_BUCKET
+          value: "${FIREBASE_STORAGE_BUCKET}"
+        - name: FIREBASE_MESSAGING_SENDER_ID
+          value: "${FIREBASE_MESSAGING_SENDER_ID}"
+        - name: FIREBASE_APP_ID
+          value: "${FIREBASE_APP_ID}"
+        - name: FIREBASE_MEASUREMENT_ID
+          value: "${FIREBASE_MEASUREMENT_ID}"
+        - name: FIREBASE_SERVICE_ACCOUNT_TYPE
+          value: "${FIREBASE_SERVICE_ACCOUNT_TYPE}"
+        - name: FIREBASE_SERVICE_ACCOUNT_PROJECT_ID
+          value: "${FIREBASE_SERVICE_ACCOUNT_PROJECT_ID}"
+        - name: FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY_ID
+          value: "${FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY_ID}"
+        - name: FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY
+          value: "${FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY}"
+        - name: FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL
+          value: "${FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL}"
+        - name: FIREBASE_SERVICE_ACCOUNT_CLIENT_ID
+          value: "${FIREBASE_SERVICE_ACCOUNT_CLIENT_ID}"
+        - name: FIREBASE_SERVICE_ACCOUNT_AUTH_URI
+          value: "${FIREBASE_SERVICE_ACCOUNT_AUTH_URI}"
+        - name: FIREBASE_SERVICE_ACCOUNT_TOKEN_URI
+          value: "${FIREBASE_SERVICE_ACCOUNT_TOKEN_URI}"
+        - name: FIREBASE_SERVICE_ACCOUNT_AUTH_PROVIDER_X509_CERT_URL
+          value: "${FIREBASE_SERVICE_ACCOUNT_AUTH_PROVIDER_X509_CERT_URL}"
+        - name: FIREBASE_SERVICE_ACCOUNT_CLIENT_X509_CERT_URL
+          value: "${FIREBASE_SERVICE_ACCOUNT_CLIENT_X509_CERT_URL}"
+        - name: FIREBASE_SERVICE_ACCOUNT_UNIVERSE_DOMAIN
+          value: "${FIREBASE_SERVICE_ACCOUNT_UNIVERSE_DOMAIN}"
+        - name: CORS_ORIGIN
+          value: "${CORS_ORIGIN}"
+        resources:
+          requests:
+            cpu: 200m      # 0.2 CPU core (conservative)
+            memory: 256Mi  # 512MB reserved (much better!)
+          limits:
+            cpu: 1500m     # 1.5 CPU cores max (burst capability)
+            memory: 2Gi    # 2GB max when needed
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: millab-backend-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: millab-backend
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # Scale up when CPU > 70%
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80  # Scale up when Memory > 80%
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60    # Wait 1 min before scaling up
+      policies:
+      - type: Percent
+        value: 100    # Max 100% increase (double pods)
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300   # Wait 5 min before scaling down
+      policies:
+      - type: Percent
+        value: 50     # Max 50% decrease at once
+        periodSeconds: 60
