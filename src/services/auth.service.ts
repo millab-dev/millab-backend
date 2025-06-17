@@ -285,6 +285,370 @@ export class AuthService {
     
     return user
   }
+
+  /**
+   * Handle Google Sign-In
+   * @param idToken Google ID token
+   * @param cookie Elysia cookie context for setting tokens
+   * @returns Response with user data or error
+   */
+  async googleSignIn(idToken: string, cookie: any): Promise<ApiResponse<{ user: User, needsProfile: boolean }>> {
+    try {
+      if (!auth) {
+        return {
+          success: false,
+          error: 'Authentication service not initialized'
+        }
+      }
+
+      // Verify the Google ID token with Firebase
+      const decodedToken = await auth.verifyIdToken(idToken)
+      const { uid, email, name, picture } = decodedToken
+
+      if (!email) {
+        return {
+          success: false,
+          error: 'Email not provided by Google'
+        }
+      }
+
+      // Check if user already exists in our database
+      let user = await userRepository.getUserById(uid)
+
+      if (user) {
+        // User exists, check if profile is complete
+        const needsProfile = !user.username || !user.gender || !user.birthplace || 
+                            !user.birthdate || !user.socializationLocation || !user.phoneNumber
+
+        // Set JWT tokens as cookies
+        jwtService.setTokenCookies(cookie, user.id)
+
+        return {
+          success: true,
+          message: 'Login successful',
+          data: {
+            user,
+            needsProfile
+          }
+        }
+      }
+
+      // User doesn't exist, create a partial user record
+      const partialUserData: Partial<CreateUserData> = {
+        email,
+        name: name || email.split('@')[0], // Fallback name
+        // These fields will be filled later
+        username: '',
+        gender: 'Female', // Default, will be updated
+        birthplace: '',
+        birthdate: '',
+        socializationLocation: '',
+        phoneNumber: '',
+        password: '' // Not needed for Google users
+      }
+
+      try {
+        // Create user with Firebase UID as the document ID
+        const newUser = await userRepository.createUserWithId(uid, partialUserData as CreateUserData)
+        
+        if (!newUser) {
+          return {
+            success: false,
+            error: 'Failed to create user account'
+          }
+        }
+
+        // Set JWT tokens as cookies
+        jwtService.setTokenCookies(cookie, newUser.id)
+
+        return {
+          success: true,
+          message: 'Account created successfully',
+          data: {
+            user: newUser,
+            needsProfile: true // New Google users always need to complete profile
+          }
+        }
+      } catch (error) {
+        console.error('Error creating Google user:', error)
+        return {
+          success: false,
+          error: 'Failed to create user account'
+        }
+      }
+    } catch (error) {
+      console.error('Google Sign-In error:', error)
+      return {
+        success: false,
+        error: 'Google authentication failed'
+      }
+    }
+  }
+
+  /**
+   * Complete user profile after Google Sign-In
+   * @param userId User ID
+   * @param profileData Additional profile data
+   * @returns Response with updated user data or error
+   */
+  async completeProfile(userId: string, profileData: {
+    username: string
+    gender: 'Male' | 'Female'
+    birthplace: string
+    birthdate: string
+    socializationLocation: string
+    phoneNumber: string
+  }): Promise<ApiResponse<User>> {
+    try {
+      // Check if username is already taken by another user
+      const existingUser = await userRepository.getUserByUsername(profileData.username)
+      if (existingUser && existingUser.id !== userId) {
+        return {
+          success: false,
+          error: 'Username is already taken'
+        }
+      }
+
+      // Update the user with the complete profile
+      const updatedUser = await userRepository.updateUser(userId, {
+        username: profileData.username,
+        gender: profileData.gender,
+        birthplace: profileData.birthplace,
+        birthdate: profileData.birthdate,
+        socializationLocation: profileData.socializationLocation,
+        phoneNumber: profileData.phoneNumber
+      })
+
+      if (!updatedUser) {
+        return {
+          success: false,
+          error: 'Failed to update user profile'
+        }
+      }
+
+      return {
+        success: true,
+        message: 'Profile completed successfully',
+        data: updatedUser
+      }
+    } catch (error) {
+      console.error('Complete profile error:', error)
+      return {
+        success: false,
+        error: 'Failed to complete profile'
+      }
+    }
+  }
+
+  /**
+   * Get Google OAuth authorization URL
+   * @returns Google OAuth URL for redirection
+   */
+  getGoogleAuthUrl(): string {
+    const clientId = process.env.GOOGLE_CLIENT_ID
+    const redirectUri = `${process.env.BACKEND_URL || 'http://localhost:8080'}/api/v1/auth/google/callback`
+    const scope = 'openid email profile'
+    const state = Math.random().toString(36).substring(7) // Simple state parameter
+    
+    const params = new URLSearchParams({
+      client_id: clientId!,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope,
+      state,
+      access_type: 'offline',
+      prompt: 'consent'
+    })
+    
+    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+  }
+
+  /**
+   * Handle Google OAuth callback
+   * @param code Authorization code from Google
+   * @param cookie Elysia cookie context for setting tokens
+   * @returns Response with user data or error
+   */  async handleGoogleCallback(code: string, cookie: any): Promise<ApiResponse<{ user: User, needsProfile: boolean }>> {
+    try {
+      console.log('🔄 Starting Google OAuth callback process...')
+      console.log('📋 Environment check:', {
+        hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+        hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+        backendUrl: process.env.BACKEND_URL || 'http://localhost:8080'
+      })
+
+      // Exchange authorization code for access token
+      const tokenRequest = {
+        client_id: process.env.GOOGLE_CLIENT_ID!,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: `${process.env.BACKEND_URL || 'http://localhost:8080'}/api/v1/auth/google/callback`,
+      }
+      
+      console.log('📤 Token exchange request:', {
+        ...tokenRequest,
+        client_secret: '***HIDDEN***',
+        code: code.substring(0, 20) + '...'
+      })
+
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(tokenRequest),
+      })
+
+      console.log('📥 Token response status:', tokenResponse.status)
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text()
+        console.error('❌ Failed to exchange code for token:', errorText)
+        return {
+          success: false,
+          error: 'Failed to authenticate with Google'
+        }
+      }      const tokenData = await tokenResponse.json()
+      const { access_token } = tokenData
+      
+      console.log('✅ Token exchange successful, access_token received:', !!access_token)
+
+      // Get user information from Google
+      console.log('📤 Fetching user info from Google...')
+      const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+        },
+      })
+
+      console.log('📥 User info response status:', userResponse.status)
+
+      if (!userResponse.ok) {
+        const errorText = await userResponse.text()
+        console.error('❌ Failed to get user info from Google:', errorText)
+        return {
+          success: false,
+          error: 'Failed to get user information from Google'
+        }
+      }
+
+      const googleUser = await userResponse.json()
+      const { id: googleId, email, name, picture } = googleUser
+      
+      console.log('👤 Google user data:', {
+        googleId,
+        email,
+        name,
+        hasPicture: !!picture
+      })
+
+      if (!email) {
+        console.error('❌ No email provided by Google')
+        return {
+          success: false,
+          error: 'Email not provided by Google'
+        }
+      }
+
+      // Check if user already exists in our database by email
+      console.log('🔍 Checking if user exists in database...')
+      let user = await userRepository.getUserByEmail(email)
+      
+      if (user) {
+        console.log('✅ Existing user found:', { userId: user.id, email: user.email })
+        // User exists, check if profile is complete
+        const needsProfile = !user.username || !user.gender || !user.birthplace || 
+                            !user.birthdate || !user.socializationLocation || !user.phoneNumber
+
+        console.log('📋 Profile completeness check:', {
+          hasUsername: !!user.username,
+          hasGender: !!user.gender,
+          hasBirthplace: !!user.birthplace,
+          hasBirthdate: !!user.birthdate,
+          hasSocializationLocation: !!user.socializationLocation,
+          hasPhoneNumber: !!user.phoneNumber,
+          needsProfile
+        })
+
+        // Set JWT tokens as cookies
+        console.log('🍪 Setting JWT cookies...')
+        jwtService.setTokenCookies(cookie, user.id)
+
+        return {
+          success: true,
+          message: 'Login successful',
+          data: {
+            user,
+            needsProfile
+          }
+        }
+      }      // User doesn't exist, create a new user record
+      console.log('👤 User not found, creating new Firebase Auth user...')
+      
+      const partialUserData: CreateUserData = {
+        email,
+        name: name || email.split('@')[0], // Fallback name
+        // These fields will be filled later via complete profile
+        username: `user_${Date.now()}`, // Temporary username
+        gender: 'Female', // Default, will be updated
+        birthplace: '',
+        birthdate: '',
+        socializationLocation: '',
+        phoneNumber: '',
+        password: `google_oauth_${Date.now()}` // Temporary password for Firebase Auth
+      }
+
+      console.log('📝 Creating Firebase Auth user with data:', {
+        email: partialUserData.email,
+        name: partialUserData.name,
+        username: partialUserData.username
+      })
+
+      try {
+        // Create user with Firebase Auth + Firestore (same as regular registration)
+        const newUser = await userRepository.createUser(partialUserData)
+        
+        if (!newUser) {
+          console.error('❌ Failed to create user - userRepository.createUser returned null')
+          return {
+            success: false,
+            error: 'Failed to create user account'
+          }
+        }
+
+        console.log('✅ New Firebase Auth + Firestore user created:', { 
+          userId: newUser.id, 
+          email: newUser.email 
+        })
+
+        // Set JWT tokens as cookies
+        console.log('🍪 Setting JWT cookies for new user...')
+        jwtService.setTokenCookies(cookie, newUser.id)
+
+        return {
+          success: true,
+          message: 'Account created successfully',
+          data: {
+            user: newUser,
+            needsProfile: true // New Google users always need to complete profile
+          }
+        }
+      } catch (error) {
+        console.error('💥 Error creating Google user:', error)
+        return {
+          success: false,
+          error: 'Failed to create user account'
+        }
+      }
+    } catch (error) {
+      console.error('💥 Google OAuth callback error:', error)
+      return {
+        success: false,
+        error: 'Google authentication failed'
+      }
+    }
+  }
 }
 
 // Export a singleton instance

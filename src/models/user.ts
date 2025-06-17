@@ -10,6 +10,7 @@ export interface User {
   socializationLocation: string
   email: string
   phoneNumber: string
+  isAdmin?: boolean // Admin flag - only true for admin users
   createdAt: string
   updatedAt: string
 }

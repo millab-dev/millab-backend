@@ -33,6 +33,104 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       email: t.String({ format: 'email' }),
       password: t.String()
     })
+  })  // Google Sign-In OAuth redirect
+  .get('/google/redirect', ({ set }) => {
+    try {
+      const googleAuthUrl = authService.getGoogleAuthUrl()
+      
+      // Check if we have valid Google OAuth configuration
+      if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+        set.status = 500
+        return {
+          success: false,
+          error: 'Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.'
+        }
+      }
+      
+      set.status = 302
+      set.headers['Location'] = googleAuthUrl
+      return
+    } catch (error) {
+      console.error('Google redirect error:', error)
+      set.status = 500
+      return {
+        success: false,
+        error: 'Failed to generate Google OAuth URL'
+      }
+    }
+  })  // Google OAuth callback
+  .get('/google/callback', async ({ query, cookie, set }) => {
+    try {
+      console.log('=== Google OAuth Callback ===')
+      console.log('Query params:', query)
+      const { code, state } = query
+      
+      if (!code) {
+        console.log('❌ No authorization code received')
+        set.status = 302
+        set.headers['Location'] = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/signin?error=oauth_cancelled`
+        return
+      }
+
+      console.log('✅ Authorization code received:', code?.substring(0, 20) + '...')
+      const result = await authService.handleGoogleCallback(code as string, cookie)
+      console.log('📄 Callback result:', {
+        success: result.success,
+        hasData: !!result.data,
+        needsProfile: result.data?.needsProfile,
+        error: result.error
+      })
+      
+      if (result.success && result.data) {
+        if (result.data.needsProfile) {
+          console.log('🔄 Redirecting to complete-profile')
+          set.status = 302
+          set.headers['Location'] = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/complete-profile`
+        } else {
+          console.log('🏠 Redirecting to home')
+          set.status = 302
+          set.headers['Location'] = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/`
+        }
+      } else {
+        console.log('❌ OAuth failed, redirecting to signin with error')
+        set.status = 302
+        set.headers['Location'] = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/signin?error=oauth_failed`
+      }
+    } catch (error) {
+      console.error('💥 Google OAuth callback error:', error)
+      set.status = 302
+      set.headers['Location'] = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/signin?error=oauth_error`
+    }
+  })
+
+  // Google Sign-In (legacy endpoint for Firebase token - keeping for compatibility)
+  .post('/google', async ({ body, cookie }) => {
+    return await authService.googleSignIn(body.idToken, cookie)
+  }, {
+    body: t.Object({
+      idToken: t.String()
+    })
+  })
+
+  // Complete profile for Google Sign-In users
+  .post('/complete-profile', async ({ body, request }) => {
+    const userId = jwtService.getUserIdFromCookies(request)
+    if (!userId) {
+      return {
+        success: false,
+        error: 'Unauthorized'
+      }
+    }
+    return await authService.completeProfile(userId, body)
+  }, {
+    body: t.Object({
+      username: t.String(),
+      gender: t.Enum({ Male: 'Male', Female: 'Female' }),
+      birthplace: t.String(),
+      birthdate: t.String(),
+      socializationLocation: t.String(),
+      phoneNumber: t.String()
+    })
   })
   
   // Logout user

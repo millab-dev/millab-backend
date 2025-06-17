@@ -62,6 +62,44 @@ export class UserRepository {
       return null
     }
   }
+
+  /**
+   * Create a new user with a specific ID (for Google Sign-In)
+   */
+  async createUserWithId(userId: string, userData: CreateUserData): Promise<User | null> {
+    try {
+      // Check if Firestore is initialized
+      if (!db) {
+        console.error(DB_NOT_INITIALIZED)
+        return null
+      }
+      
+      const timestamp = new Date().toISOString()
+      
+      // Prepare user data without password
+      const userDoc: User = {
+        id: userId,
+        name: userData.name,
+        username: userData.username,
+        gender: userData.gender,
+        birthplace: userData.birthplace,
+        birthdate: userData.birthdate,
+        socializationLocation: userData.socializationLocation,
+        email: userData.email,
+        phoneNumber: userData.phoneNumber,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }
+      
+      // Save to Firestore with the specific ID
+      await db.collection(this.collection).doc(userId).set(userDoc)
+      
+      return userDoc
+    } catch (error) {
+      console.error('Error creating user with ID:', error)
+      return null
+    }
+  }
   
   /**
    * Get a user by ID
