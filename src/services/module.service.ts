@@ -30,8 +30,7 @@ export class ModuleService {
    */
   async getActiveModules(): Promise<Module[]> {
     return await moduleRepository.getActiveModules();
-  }
-  /**
+  }  /**
    * Get modules with user progress
    */  
   async getModulesWithProgress(userId: string): Promise<(Module & { progress?: UserProgress | null })[]> {
@@ -47,6 +46,33 @@ export class ModuleService {
       ...module,
       progress: progressMap.get(module.id) || null,
     }));
+  }
+
+  /**
+   * Get homepage modules (order 1, 5, 11) with user progress
+   */
+  async getHomepageModules(userId: string): Promise<(Module & { progress?: UserProgress | null })[]> {
+    const modules = await moduleRepository.getActiveModules();
+    const userProgressList = await moduleRepository.getAllUserProgress(userId);
+    
+    // Filter modules with order 1, 5, or 11
+    const homepageModules = modules.filter(module => 
+      module.order === 1 || module.order === 5 || module.order === 11
+    );
+    
+    // Create a map for quick lookup
+    const progressMap = new Map<string, UserProgress>();
+    userProgressList.forEach((progress: UserProgress) => {
+      progressMap.set(progress.moduleId, progress);
+    });
+    
+    // Combine modules with their progress and sort by order
+    return homepageModules
+      .map(module => ({
+        ...module,
+        progress: progressMap.get(module.id) || null,
+      }))
+      .sort((a, b) => a.order - b.order);
   }
 
   /**
@@ -146,7 +172,6 @@ export class ModuleService {
   async getUserModuleProgress(userId: string, moduleId: string): Promise<UserProgress | null> {
     return await moduleRepository.getUserProgress(userId, moduleId);
   }
-
   /**
    * Validate module data
    */
@@ -157,6 +182,10 @@ export class ModuleService {
 
     if (!moduleData.description || moduleData.description.trim().length === 0) {
       throw new Error("Module description is required");
+    }
+
+    if (!moduleData.difficulty || !['Easy', 'Intermediate', 'Advanced'].includes(moduleData.difficulty)) {
+      throw new Error("Module difficulty must be Easy, Intermediate, or Advanced");
     }
 
     if (moduleData.order < 0) {
@@ -213,14 +242,8 @@ export class ModuleService {
 
     if (!quiz.duration || quiz.duration.trim().length === 0) {
       throw new Error("Quiz duration is required");
-    }
-
-    if (quiz.totalQuestions <= 0) {
+    }    if (quiz.totalQuestions <= 0) {
       throw new Error("Quiz must have at least one question");
-    }
-
-    if (quiz.passingScore < 0 || quiz.passingScore > 100) {
-      throw new Error("Quiz passing score must be between 0 and 100");
     }
   }
 }

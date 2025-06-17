@@ -5,6 +5,7 @@ export interface Module {
   id: string;
   title: string;
   description: string;
+  difficulty: 'Easy' | 'Intermediate' | 'Advanced';
   order: number; // For ordering modules
   sections: ModuleSection[];
   quiz: ModuleQuiz;
@@ -35,7 +36,6 @@ export interface ModuleQuiz {
   description: string;
   duration: string;
   totalQuestions: number;
-  passingScore: number; // Percentage needed to pass
   questions: QuizQuestion[];
   isActive: boolean;
 }
@@ -76,6 +76,7 @@ export interface UserProgress {
 export interface CreateModuleData {
   title: string;
   description: string;
+  difficulty: 'Easy' | 'Intermediate' | 'Advanced';
   order: number;
   sections: CreateModuleSectionData[];
   quiz: CreateModuleQuizData;
@@ -102,7 +103,6 @@ export interface CreateModuleQuizData {
   description: string;
   duration: string;
   totalQuestions: number;
-  passingScore: number;
   questions: CreateQuizQuestionData[];
   isActive: boolean;
 }
@@ -125,6 +125,7 @@ export interface CreateQuizQuestionData {
 export interface UpdateModuleData {
   title?: string;
   description?: string;
+  difficulty?: 'Easy' | 'Intermediate' | 'Advanced';
   order?: number;
   sections?: UpdateModuleSectionData[];
   quiz?: UpdateModuleQuizData;
@@ -155,7 +156,6 @@ export interface UpdateModuleQuizData {
   description: string;
   duration: string;
   totalQuestions: number;
-  passingScore: number;
   questions: UpdateQuizQuestionData[];
   isActive: boolean;
   createdAt?: string;

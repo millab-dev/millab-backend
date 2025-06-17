@@ -3,6 +3,9 @@ import { moduleService } from "../../../services/module.service";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
 import { requireAdmin } from "../../../middlewares/admin.middleware";
 import { jwtService } from "../../../services/jwt.service";
+import { UserReadingStateService } from "../../../services/userReadingState.service";
+
+const userReadingStateService = new UserReadingStateService();
 
 export const moduleRoutes = new Elysia({ prefix: "/modules" })
   // Public routes (authenticated users)
@@ -31,6 +34,30 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
     }
   })
 
+  // Get homepage modules (order 1, 5, 11)
+  .get("/homepage", async ({ request }) => {
+    try {
+      const userId = jwtService.getUserIdFromCookies(request);
+      if (!userId) {
+        return {
+          success: false,
+          error: "Authentication required",
+        };
+      }
+
+      const modules = await moduleService.getHomepageModules(userId);
+      return {
+        success: true,
+        data: modules,
+      };
+    } catch (error: any) {
+      console.error("Get homepage modules error:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to fetch homepage modules",
+      };
+    }
+  })
   .get("/:id", async ({ params: { id }, request }) => {
     try {
       const userId = jwtService.getUserIdFromCookies(request);
@@ -48,6 +75,15 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
           error: "Module not found",
         };
       }
+
+      // Track module access for reading state
+      try {
+        await userReadingStateService.updateUserModuleAccess(userId, id);
+      } catch (error) {
+        // Don't fail the request if tracking fails
+        console.error("Failed to track module access:", error);
+      }
+
       return {
         success: true,
         data: module,
@@ -189,10 +225,10 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
         error: error.message || "Failed to create module",
       };
     }
-  }, {
-    body: t.Object({
+  }, {    body: t.Object({
       title: t.String({ minLength: 1 }),
       description: t.String({ minLength: 1 }),
+      difficulty: t.Union([t.Literal('Easy'), t.Literal('Intermediate'), t.Literal('Advanced')]),
       order: t.Number({ minimum: 0 }),
       sections: t.Array(t.Object({
         title: t.String({ minLength: 1 }),
@@ -201,13 +237,11 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
         order: t.Number({ minimum: 0 }),
         pdfUrl: t.Optional(t.String()),
         isActive: t.Boolean(),
-      })),
-      quiz: t.Object({
+      })),      quiz: t.Object({
         title: t.String({ minLength: 1 }),
         description: t.String({ minLength: 1 }),
         duration: t.String({ minLength: 1 }),
         totalQuestions: t.Number({ minimum: 1 }),
-        passingScore: t.Number({ minimum: 0, maximum: 100 }),
         questions: t.Array(t.Object({
           question: t.String({ minLength: 1 }),
           type: t.Union([t.Literal('multiple-choice'), t.Literal('true-false')]),
@@ -235,10 +269,10 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
         error: error.message || "Failed to update module",
       };
     }
-  }, {
-    body: t.Object({
+  }, {    body: t.Object({
       title: t.Optional(t.String({ minLength: 1 })),
       description: t.Optional(t.String({ minLength: 1 })),
+      difficulty: t.Optional(t.Union([t.Literal('Easy'), t.Literal('Intermediate'), t.Literal('Advanced')])),
       order: t.Optional(t.Number({ minimum: 0 })),
       sections: t.Optional(t.Array(t.Object({
         title: t.String({ minLength: 1 }),
@@ -247,13 +281,11 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
         order: t.Number({ minimum: 0 }),
         pdfUrl: t.Optional(t.String()),
         isActive: t.Boolean(),
-      }))),
-      quiz: t.Optional(t.Object({
+      }))),      quiz: t.Optional(t.Object({
         title: t.String({ minLength: 1 }),
         description: t.String({ minLength: 1 }),
         duration: t.String({ minLength: 1 }),
         totalQuestions: t.Number({ minimum: 1 }),
-        passingScore: t.Number({ minimum: 0, maximum: 100 }),
         questions: t.Optional(t.Array(t.Object({
           question: t.String({ minLength: 1 }),
           type: t.Union([t.Literal('multiple-choice'), t.Literal('true-false')]),
