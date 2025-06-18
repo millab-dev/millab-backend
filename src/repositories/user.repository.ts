@@ -43,7 +43,6 @@ export class UserRepository {
       const userDoc: User = {
         id: userId,
         name: userData.name,
-        username: userData.username,
         gender: userData.gender,
         birthplace: userData.birthplace,
         birthdate: userData.birthdate,
@@ -154,33 +153,7 @@ export class UserRepository {
     }
   }
   
-  /**
-   * Get a user by username
-   */
-  async getUserByUsername(username: string): Promise<User | null> {
-    try {
-      // Check if Firestore is initialized
-      if (!db) {
-        console.error(DB_NOT_INITIALIZED)
-        return null
-      }
-      
-      const snapshot = await db.collection(this.collection)
-        .where('username', '==', username)
-        .limit(1)
-        .get()
-      
-      if (snapshot.empty) {
-        return null
-      }
-      
-      const doc = snapshot.docs[0]
-      return { id: doc.id, ...doc.data() } as User
-    } catch (error) {
-      console.error('Error getting user by username:', error)
-      return null
-    }
-  }
+  
   
   /**
    * Update a user

@@ -80,15 +80,17 @@ export class JwtService {
     
     console.log('Setting cookies for userId:', userId);
     console.log('Access token first 15 chars:', accessToken.substring(0, 15) + '...');
-    
-    // PENTING: SameSite=None HARUS disertai dengan Secure=true
-    // Bahkan di environment development, kecuali kita gunakan SameSite=Lax
+
+   
+    // Cookie options dengan pengaturan yang tepat untuk proxy Next.js
     const cookieOptions = {
-      httpOnly: true,
-      secure: true,     // HARUS true ketika sameSite: 'none'
-      sameSite: 'none' as const, // 'none' diperlukan untuk cross-site
-      path: '/' // Ensure cookie is available throughout the site
-    };
+        httpOnly: true,
+        secure: true,     // HARUS true di production
+        sameSite: 'none' as const, // 'none' diperlukan untuk cross-site
+        path: '/', // Ensure cookie is available throughout the site
+        // Domain tidak perlu diatur karena kita menggunakan proxy di Next.js
+        // yang membuat semua request melewati domain frontend
+      };
     
     // CRITICAL DEBUG - Log semua cookie settings
     console.log('CRITICAL: Cookie setting yang digunakan:', cookieOptions);
@@ -131,23 +133,19 @@ export class JwtService {
       request.headers.forEach((value, key) => {
         allHeaders[key] = value;
       });
-      console.log('Request headers:', allHeaders);
-      
       // Get cookie header
       const cookies = request.headers.get('cookie') || ''
-      console.log('Raw cookies string:', cookies);
+      console.log('Cookies exists:', !!cookies)
       
       // Find access token
       const tokenMatch = cookies.match(/access_token=([^;]+)/)
-      console.log('Token match result:', tokenMatch);
       
       if (!tokenMatch) {
-        console.log('No access_token found in cookies');
+        // console.log('No access_token found in cookies');
         return null;
       }
       
       const token = tokenMatch[1]
-      console.log('Extracted token:', token.substring(0, 15) + '...');
       
       if (!token) {
         console.log('Token is empty');
@@ -196,11 +194,14 @@ export class JwtService {
       const accessToken = this.generateAccessToken(payload.userId)
       console.log('Generated new access token for userId:', payload.userId);
       
+      // Also generate a new refresh token to extend the session
+      const newRefreshToken = this.generateRefreshToken(payload.userId)
+      console.log('Generated new refresh token for userId:', payload.userId);
+      
       // Cookie options - same as in setTokenCookies
-      const isProd = process.env.ENVIRONMENT === 'production';
       const cookieOptions = {
         httpOnly: true,
-        secure: isProd,     // true hanya jika di production
+        secure: true,     // HARUS true untuk SameSite=None
         sameSite: 'none' as const, // 'none' diperlukan untuk cross-site
         path: '/' // Ensure cookie is available throughout the site
       };
@@ -213,8 +214,15 @@ export class JwtService {
         ...cookieOptions,
         maxAge: 60 * 60 // 1 hour in seconds
       });
+
+      // Also set the new refresh token to extend the session
+      cookie.refresh_token.set({
+        value: newRefreshToken,
+        ...cookieOptions,
+        maxAge: 7 * 24 * 60 * 60 // 7 days in seconds
+      });
       
-      console.log('Access token refreshed successfully');
+      console.log('Access and refresh tokens refreshed successfully');
       
       return true
     } catch (error) {
