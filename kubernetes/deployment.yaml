@@ -76,6 +76,11 @@ spec:
           value: "${FIREBASE_SERVICE_ACCOUNT_UNIVERSE_DOMAIN}"
         - name: CORS_ORIGIN
           value: "${CORS_ORIGIN}"
+        - name: GOOGLE_CLIENT_ID
+          value: "${GOOGLE_CLIENT_ID}"
+        - name: GOOGLE_CLIENT_SECRET
+          value: "${GOOGLE_CLIENT_SECRET}"
+
         resources:
           requests:
             cpu: 200m      # 0.2 CPU core (conservative)
