@@ -75,11 +75,20 @@ spec:
         - name: FIREBASE_SERVICE_ACCOUNT_UNIVERSE_DOMAIN
           value: "${FIREBASE_SERVICE_ACCOUNT_UNIVERSE_DOMAIN}"
         - name: CORS_ORIGIN
+<<<<<<< HEAD
           value: "${CORS_ORIGIN}"
+=======
+          value: "${CORS_ORIGIN}"        
+>>>>>>> 0c887c1 (callback)
         - name: GOOGLE_CLIENT_ID
           value: "${GOOGLE_CLIENT_ID}"
         - name: GOOGLE_CLIENT_SECRET
           value: "${GOOGLE_CLIENT_SECRET}"
+<<<<<<< HEAD
+=======
+        - name: FRONTEND_URL
+          value: "${FRONTEND_URL}"
+>>>>>>> 0c887c1 (callback)
 
         resources:
           requests:
