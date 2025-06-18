@@ -6,30 +6,44 @@ import {
 } from "../models/userReadingState";
 
 export class UserReadingStateRepository {
-  private collection = db.collection("userReadingStates");
+  private collection;
 
+  constructor() {
+    if (!db) {
+      throw new Error('Firebase Firestore is not initialized');
+    }
+    this.collection = db.collection("userReadingStates");
+  }
   /**
    * Get last accessed modules for a user (max 2)
    */
   async getUserLastAccessedModules(userId: string): Promise<UserReadingState[]> {
     try {
+      console.log(`🔍 [DEBUG] getUserLastAccessedModules called for userId: ${userId}`);
+      
       const snapshot = await this.collection
         .where("userId", "==", userId)
         .orderBy("lastAccessedAt", "desc")
         .limit(2)
         .get();
 
+      console.log(`📊 [DEBUG] Database query returned ${snapshot.docs.length} documents`);
+
       const readingStates: UserReadingState[] = [];
       snapshot.forEach((doc) => {
+        const data = doc.data();
+        console.log(`📄 [DEBUG] Document ${doc.id}:`, data);
+        
         readingStates.push({
           id: doc.id,
-          ...doc.data(),
+          ...data,
         } as UserReadingState);
       });
 
+      console.log(`✅ [DEBUG] Returning ${readingStates.length} reading states:`, readingStates);
       return readingStates;
     } catch (error) {
-      console.error("Error getting user last accessed modules:", error);
+      console.error("❌ [ERROR] Error getting user last accessed modules:", error);
       throw error;
     }
   }
@@ -47,12 +61,11 @@ export class UserReadingStateRepository {
         .where("moduleId", "==", data.moduleId)
         .get();
 
-      const now = new Date().toISOString();
-
-      if (!existingSnapshot.empty) {
+      const now = new Date().toISOString();      if (!existingSnapshot.empty) {
         // Update existing reading state
         const doc = existingSnapshot.docs[0];
-        const updateData: UpdateUserReadingStateData & { updatedAt: string } = {
+        
+        const updateData = {
           lastAccessedAt: now,
           updatedAt: now,
         };
@@ -97,11 +110,13 @@ export class UserReadingStateRepository {
         .get();
 
       const docs = snapshot.docs;
-      
-      // If user has more than 2 reading states, delete the oldest ones
+        // If user has more than 2 reading states, delete the oldest ones
       if (docs.length > 2) {
         const docsToDelete = docs.slice(2); // Keep first 2, delete the rest
         
+        if (!db) {
+          throw new Error('Firebase Firestore is not initialized');
+        }
         const batch = db.batch();
         docsToDelete.forEach((doc) => {
           batch.delete(doc.ref);
