@@ -15,7 +15,7 @@ jobs:
           DEPLOYMENT_CONFIG: ${{ secrets.DEPLOYMENT_CONFIG }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          PENDEPLOY_API_KEY: ${{ secrets.PENDEPLOY_API_KEY }}
+          PENDEPLOY_API_KEY: ${{ secrets.API_KEY }}
         run: |
           # Create dynamic image tag
           REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
