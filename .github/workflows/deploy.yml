@@ -13,6 +13,9 @@ jobs:
       - name: Trigger Deployment via pendeploy-simple
         env:
           DEPLOYMENT_CONFIG: ${{ secrets.DEPLOYMENT_CONFIG }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          PENDEPLOY_API_KEY: ${{ secrets.PENDEPLOY_API_KEY }}
         run: |
           # Create dynamic image tag
           REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
@@ -23,18 +26,27 @@ jobs:
           # Validate JSON format first
           echo "$DEPLOYMENT_CONFIG" | jq . > /dev/null || (echo "❌ Invalid JSON format!" && exit 1)
           
-          # Inject dynamic registry ke JSON config
-          UPDATED_CONFIG=$(echo "$DEPLOYMENT_CONFIG" | jq --arg image "$DYNAMIC_IMAGE_TAG" --arg github_url "https://github.com/${{ github.repository }}" '
+          # Inject dynamic registry and Google OAuth credentials to JSON config
+          UPDATED_CONFIG=$(echo "$DEPLOYMENT_CONFIG" | jq --arg image "$DYNAMIC_IMAGE_TAG" --arg github_url "https://github.com/${{ github.repository }}" --arg google_client_id "$GOOGLE_CLIENT_ID" --arg google_client_secret "$GOOGLE_CLIENT_SECRET" '
             .githubUrl = $github_url |
-            .env.IMAGE_REGISTRY = $image
+            .env.IMAGE_REGISTRY = $image |
+            .env.GOOGLE_CLIENT_ID = $google_client_id |
+            .env.GOOGLE_CLIENT_SECRET = $google_client_secret
           ')
           
           echo "✅ Successfully updated deployment config"
           echo "📡 Sending deployment request..."
           
-          # Send the updated config
+          # Check if API key is set
+          if [ -z "$PENDEPLOY_API_KEY" ]; then
+            echo "❌ ERROR: PENDEPLOY_API_KEY is not set in GitHub secrets"
+            exit 1
+          fi
+          
+          # Send the updated config with API key authentication
           curl -X POST \
             -H "Content-Type: application/json" \
+            -H "X-API-Key: $PENDEPLOY_API_KEY" \
             -d "$UPDATED_CONFIG" \
             https://api.millab-kubernetes.isacitra.com/create-deployment
         
