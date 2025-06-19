@@ -9,10 +9,10 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   // Register a new user
   .post('/register', async ({ body }) => {
     console.log("[route] REGISTERING USER")
-    return await authService.register(body)
-  }, {
+    return await authService.register(body)  }, {
     body: t.Object({
       name: t.String(),
+      username: t.String(),
       email: t.String({ format: 'email' }),
       password: t.String({ minLength: 8 }),
       gender: t.Enum({ Male: 'Male', Female: 'Female' }), // Menggunakan enum untuk validasi
@@ -121,9 +121,9 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         error: 'Unauthorized'
       }
     }
-    return await authService.completeProfile(userId, body)
-  }, {
+    return await authService.completeProfile(userId, body)  }, {
     body: t.Object({
+      name: t.String(),
       username: t.String(),
       gender: t.Enum({ Male: 'Male', Female: 'Female' }),
       birthplace: t.String(),

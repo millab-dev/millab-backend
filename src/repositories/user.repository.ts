@@ -34,8 +34,7 @@ export class UserRepository {
         password: userData.password,
         displayName: userData.name,
       })
-      
-      // 2. Create user document in Firestore
+        // 2. Create user document in Firestore
       const userId = userCredential.uid
       const timestamp = new Date().toISOString()
       
@@ -43,6 +42,7 @@ export class UserRepository {
       const userDoc: User = {
         id: userId,
         name: userData.name,
+        username: userData.username,
         gender: userData.gender,
         birthplace: userData.birthplace,
         birthdate: userData.birthdate,
@@ -73,8 +73,7 @@ export class UserRepository {
         console.error(DB_NOT_INITIALIZED)
         return null
       }
-      
-      const timestamp = new Date().toISOString()
+        const timestamp = new Date().toISOString()
       
       // Prepare user data without password
       const userDoc: User = {
@@ -147,15 +146,45 @@ export class UserRepository {
       
       const doc = snapshot.docs[0]
       return { id: doc.id, ...doc.data() } as User
+    } catch (error) {      console.error('Error getting user by email:', error)
+      return null
+    }
+  }
+  
+  /**
+   * Get a user by name
+   */
+  async getUserByName(name: string): Promise<User | null> {
+    try {
+      // Check if Firestore is initialized
+      if (!db) {
+        console.error(DB_NOT_INITIALIZED)
+        return null
+      }
+      
+      const snapshot = await db
+        .collection(this.collection)
+        .where('name', '==', name)
+        .limit(1)
+        .get()
+      
+      if (snapshot.empty) {
+        return null
+      }
+      
+      const doc = snapshot.docs[0]
+      return {
+        id: doc.id,
+        ...doc.data()
+      } as User
     } catch (error) {
-      console.error('Error getting user by email:', error)
+      console.error('Error getting user by name:', error)
       return null
     }
   }
   
   
-  
-  /**
+    /**
    * Update a user
    */
   async updateUser(userId: string, userData: Partial<User>): Promise<User | null> {
@@ -175,12 +204,24 @@ export class UserRepository {
         updatedAt: new Date().toISOString()
       }
       
+      console.log('=== UPDATING USER ===');
+      console.log('userId:', userId);
+      console.log('dataToUpdate:', JSON.stringify(dataToUpdate, null, 2));
+      
       await db.collection(this.collection).doc(userId).update(dataToUpdate)
       
+      console.log('Firebase update successful, fetching updated user...');
+      
       // Return the updated user
-      return this.getUserById(userId)
+      const updatedUser = await this.getUserById(userId);
+      console.log('Updated user fetched:', updatedUser ? 'success' : 'failed');
+      return updatedUser;
     } catch (error) {
-      console.error('Error updating user:', error)
+      console.error('=== ERROR UPDATING USER ===');
+      console.error('userId:', userId);
+      console.error('Error details:', error);
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error code:', (error as any)?.code);
       return null
     }
   }

@@ -257,20 +257,19 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
         success: false,
         error: error.message || "Failed to create module",
       };
-    }
-  }, {    body: t.Object({
+    }  }, {    body: t.Object({
       title: t.String({ minLength: 1 }),
       description: t.String({ minLength: 1 }),
       difficulty: t.Union([t.Literal('Easy'), t.Literal('Intermediate'), t.Literal('Advanced')]),
       order: t.Number({ minimum: 0 }),
+      pdfUrl: t.Optional(t.String()),
       sections: t.Array(t.Object({
         title: t.String({ minLength: 1 }),
         content: t.String({ minLength: 1 }),
         duration: t.String({ minLength: 1 }),
         order: t.Number({ minimum: 0 }),
-        pdfUrl: t.Optional(t.String()),
         isActive: t.Boolean(),
-      })),      quiz: t.Object({
+      })),quiz: t.Object({
         title: t.String({ minLength: 1 }),
         description: t.String({ minLength: 1 }),
         duration: t.String({ minLength: 1 }),
@@ -301,20 +300,19 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
         success: false,
         error: error.message || "Failed to update module",
       };
-    }
-  }, {    body: t.Object({
+    }  }, {    body: t.Object({
       title: t.Optional(t.String({ minLength: 1 })),
       description: t.Optional(t.String({ minLength: 1 })),
       difficulty: t.Optional(t.Union([t.Literal('Easy'), t.Literal('Intermediate'), t.Literal('Advanced')])),
       order: t.Optional(t.Number({ minimum: 0 })),
+      pdfUrl: t.Optional(t.String()),
       sections: t.Optional(t.Array(t.Object({
         title: t.String({ minLength: 1 }),
         content: t.String({ minLength: 1 }),
         duration: t.String({ minLength: 1 }),
         order: t.Number({ minimum: 0 }),
-        pdfUrl: t.Optional(t.String()),
         isActive: t.Boolean(),
-      }))),      quiz: t.Optional(t.Object({
+      }))),quiz: t.Optional(t.Object({
         title: t.String({ minLength: 1 }),
         description: t.String({ minLength: 1 }),
         duration: t.String({ minLength: 1 }),

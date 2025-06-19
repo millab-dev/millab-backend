@@ -7,6 +7,7 @@ export interface Module {
   description: string;
   difficulty: 'Easy' | 'Intermediate' | 'Advanced';
   order: number; // For ordering modules
+  pdfUrl?: string; // PDF download link for the entire module
   sections: ModuleSection[];
   quiz: ModuleQuiz;
   isActive: boolean;
@@ -23,7 +24,6 @@ export interface ModuleSection {
   content: string; // HTML content or markdown
   duration: string; // e.g., "5 min"
   order: number;
-  pdfUrl?: string; // Optional PDF download link
   isActive: boolean;
 }
 
@@ -78,6 +78,7 @@ export interface CreateModuleData {
   description: string;
   difficulty: 'Easy' | 'Intermediate' | 'Advanced';
   order: number;
+  pdfUrl?: string;
   sections: CreateModuleSectionData[];
   quiz: CreateModuleQuizData;
   isActive: boolean;
@@ -91,7 +92,6 @@ export interface CreateModuleSectionData {
   content: string;
   duration: string;
   order: number;
-  pdfUrl?: string;
   isActive: boolean;
 }
 
