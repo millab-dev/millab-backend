@@ -317,7 +317,7 @@ export class AuthService {
 
       if (user) {
         // User exists, check if profile is complete
-        const needsProfile = !user.username || !user.gender || !user.birthplace || 
+        const needsProfile = !user.name || !user.gender || !user.birthplace || 
                             !user.birthdate || !user.socializationLocation || !user.phoneNumber
 
         // Set JWT tokens as cookies
@@ -390,9 +390,8 @@ export class AuthService {
    * @param userId User ID
    * @param profileData Additional profile data
    * @returns Response with updated user data or error
-   */
-  async completeProfile(userId: string, profileData: {
-    username: string
+   */  async completeProfile(userId: string, profileData: {
+    name: string
     gender: 'Male' | 'Female'
     birthplace: string
     birthdate: string
@@ -400,18 +399,18 @@ export class AuthService {
     phoneNumber: string
   }): Promise<ApiResponse<User>> {
     try {
-      // Check if username is already taken by another user
-      const existingUser = await userRepository.getUserByUsername(profileData.username)
+      // Check if name is already taken by another user
+      const existingUser = await userRepository.getUserByName(profileData.name)
       if (existingUser && existingUser.id !== userId) {
         return {
           success: false,
-          error: 'Username is already taken'
+          error: 'Name is already taken'
         }
       }
 
       // Update the user with the complete profile
       const updatedUser = await userRepository.updateUser(userId, {
-        username: profileData.username,
+        name: profileData.name,
         gender: profileData.gender,
         birthplace: profileData.birthplace,
         birthdate: profileData.birthdate,
@@ -558,11 +557,11 @@ export class AuthService {
       if (user) {
         console.log('✅ Existing user found:', { userId: user.id, email: user.email })
         // User exists, check if profile is complete
-        const needsProfile = !user.username || !user.gender || !user.birthplace || 
+        const needsProfile = !user.name || !user.gender || !user.birthplace || 
                             !user.birthdate || !user.socializationLocation || !user.phoneNumber
 
         console.log('📋 Profile completeness check:', {
-          hasUsername: !!user.username,
+          hasname: !!user.name,
           hasGender: !!user.gender,
           hasBirthplace: !!user.birthplace,
           hasBirthdate: !!user.birthdate,
@@ -588,9 +587,8 @@ export class AuthService {
       
       const partialUserData: CreateUserData = {
         email,
-        name: name || email.split('@')[0], // Fallback name
-        // These fields will be filled later via complete profile
-        username: `user_${Date.now()}`, // Temporary username
+        name: `user_${Date.now()}`, // Temporary name, will be updated in complete profile
+        username: '', // Will be set later
         gender: 'Female', // Default, will be updated
         birthplace: '',
         birthdate: '',
@@ -601,8 +599,7 @@ export class AuthService {
 
       console.log('📝 Creating Firebase Auth user with data:', {
         email: partialUserData.email,
-        name: partialUserData.name,
-        username: partialUserData.username
+        name: partialUserData.name
       })
 
       try {

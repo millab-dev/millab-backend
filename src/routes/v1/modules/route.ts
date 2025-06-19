@@ -184,14 +184,47 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
       return {
         success: true,
         data: progress,
-      };
-    } catch (error: any) {
+      };    } catch (error: any) {
       console.error("Get module progress error:", error);
       return {
         success: false,
         error: error.message || "Failed to fetch module progress",
       };
     }
+  })
+    // Submit quiz completion
+  .post("/:id/progress/quiz", async ({ params: { id }, body, request }) => {
+    try {
+      const userId = jwtService.getUserIdFromCookies(request);
+      if (!userId) {
+        return {
+          success: false,
+          error: "Authentication required",
+        };
+      }
+
+      const { score, completed } = body;
+      
+      // Update module progress with quiz completion
+      const progress = await moduleService.markQuizCompleted(userId, id, score);
+      
+      return {
+        success: true,
+        data: progress,
+        message: "Quiz completed successfully",
+      };
+    } catch (error: any) {
+      console.error("Update quiz progress error:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to update quiz progress",
+      };
+    }
+  }, {
+    body: t.Object({
+      score: t.Number({ minimum: 0, maximum: 100 }),
+      completed: t.Boolean(),
+    }),
   })
 
   // Admin routes
@@ -224,20 +257,19 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
         success: false,
         error: error.message || "Failed to create module",
       };
-    }
-  }, {    body: t.Object({
+    }  }, {    body: t.Object({
       title: t.String({ minLength: 1 }),
       description: t.String({ minLength: 1 }),
       difficulty: t.Union([t.Literal('Easy'), t.Literal('Intermediate'), t.Literal('Advanced')]),
       order: t.Number({ minimum: 0 }),
+      pdfUrl: t.Optional(t.String()),
       sections: t.Array(t.Object({
         title: t.String({ minLength: 1 }),
         content: t.String({ minLength: 1 }),
         duration: t.String({ minLength: 1 }),
         order: t.Number({ minimum: 0 }),
-        pdfUrl: t.Optional(t.String()),
         isActive: t.Boolean(),
-      })),      quiz: t.Object({
+      })),quiz: t.Object({
         title: t.String({ minLength: 1 }),
         description: t.String({ minLength: 1 }),
         duration: t.String({ minLength: 1 }),
@@ -268,20 +300,19 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
         success: false,
         error: error.message || "Failed to update module",
       };
-    }
-  }, {    body: t.Object({
+    }  }, {    body: t.Object({
       title: t.Optional(t.String({ minLength: 1 })),
       description: t.Optional(t.String({ minLength: 1 })),
       difficulty: t.Optional(t.Union([t.Literal('Easy'), t.Literal('Intermediate'), t.Literal('Advanced')])),
       order: t.Optional(t.Number({ minimum: 0 })),
+      pdfUrl: t.Optional(t.String()),
       sections: t.Optional(t.Array(t.Object({
         title: t.String({ minLength: 1 }),
         content: t.String({ minLength: 1 }),
         duration: t.String({ minLength: 1 }),
         order: t.Number({ minimum: 0 }),
-        pdfUrl: t.Optional(t.String()),
         isActive: t.Boolean(),
-      }))),      quiz: t.Optional(t.Object({
+      }))),quiz: t.Optional(t.Object({
         title: t.String({ minLength: 1 }),
         description: t.String({ minLength: 1 }),
         duration: t.String({ minLength: 1 }),
