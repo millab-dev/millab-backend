@@ -184,14 +184,47 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
       return {
         success: true,
         data: progress,
-      };
-    } catch (error: any) {
+      };    } catch (error: any) {
       console.error("Get module progress error:", error);
       return {
         success: false,
         error: error.message || "Failed to fetch module progress",
       };
     }
+  })
+    // Submit quiz completion
+  .post("/:id/progress/quiz", async ({ params: { id }, body, request }) => {
+    try {
+      const userId = jwtService.getUserIdFromCookies(request);
+      if (!userId) {
+        return {
+          success: false,
+          error: "Authentication required",
+        };
+      }
+
+      const { score, completed } = body;
+      
+      // Update module progress with quiz completion
+      const progress = await moduleService.markQuizCompleted(userId, id, score);
+      
+      return {
+        success: true,
+        data: progress,
+        message: "Quiz completed successfully",
+      };
+    } catch (error: any) {
+      console.error("Update quiz progress error:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to update quiz progress",
+      };
+    }
+  }, {
+    body: t.Object({
+      score: t.Number({ minimum: 0, maximum: 100 }),
+      completed: t.Boolean(),
+    }),
   })
 
   // Admin routes
