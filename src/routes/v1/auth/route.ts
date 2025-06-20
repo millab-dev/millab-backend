@@ -82,16 +82,31 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       })
       
       if (result.success && result.data) {
+        // Generate tokens directly here
+        const accessToken = jwtService.generateAccessToken(result.data.user.id)
+        const refreshToken = jwtService.generateRefreshToken(result.data.user.id)
+        
+        console.log('🔑 Generated tokens for redirection')
+        
+        // Build URLs with tokens as search parameters
         if (result.data.needsProfile) {
           console.log('🔄 Redirecting to complete-profile')
           set.status = 302
           set.cookie = cookie
-          set.headers['Location'] = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/complete-profile`
+          const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/api/oauth-redirect?` +
+                      `destination=/complete-profile&` +
+                      `access_token=${encodeURIComponent(accessToken)}&` +
+                      `refresh_token=${encodeURIComponent(refreshToken)}`
+          set.headers['Location'] = url
         } else {
           console.log('🏠 Redirecting to home')
           set.status = 302
           set.cookie = cookie
-          set.headers['Location'] = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/`
+          const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/api/oauth-redirect?` +
+                      `destination=/app&` +
+                      `access_token=${encodeURIComponent(accessToken)}&` +
+                      `refresh_token=${encodeURIComponent(refreshToken)}`
+          set.headers['Location'] = url
         }
       } else {
         console.log('❌ OAuth failed, redirecting to signin with error')
