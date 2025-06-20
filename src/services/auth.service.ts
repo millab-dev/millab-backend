@@ -446,6 +446,7 @@ export class AuthService {
   getGoogleAuthUrl(): string {
     const clientId = process.env.GOOGLE_CLIENT_ID
     const redirectUri = `${process.env.BACKEND_URL || 'http://localhost:8080'}/api/v1/auth/google/callback`
+    console.log("redirectUri:",redirectUri)
     const scope = 'openid email profile'
     const state = Math.random().toString(36).substring(7) // Simple state parameter
     
