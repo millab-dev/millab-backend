@@ -34,7 +34,8 @@ jobs:
             .env.GOOGLE_CLIENT_ID = $google_client_id |
             .env.GOOGLE_CLIENT_SECRET = $google_client_secret |
             .env.FRONTEND_URL = $frontend_url |
-            .env.CORS_ORIGIN = $cors_origin
+            .env.CORS_ORIGIN = $cors_origin |
+            .env.BACKEND_URL = https://api.millabindonesia.com
           ')
           
           echo "✅ Successfully updated deployment config"

@@ -82,6 +82,8 @@ spec:
           value: "${GOOGLE_CLIENT_SECRET}"
         - name: FRONTEND_URL
           value: "${FRONTEND_URL}"
+        - name: BACKEND_URL
+          value: "${BACKEND_URL}"
 
         resources:
           requests:
