@@ -85,10 +85,12 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         if (result.data.needsProfile) {
           console.log('🔄 Redirecting to complete-profile')
           set.status = 302
+          set.cookie = cookie
           set.headers['Location'] = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/complete-profile`
         } else {
           console.log('🏠 Redirecting to home')
           set.status = 302
+          set.cookie = cookie
           set.headers['Location'] = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/`
         }
       } else {
