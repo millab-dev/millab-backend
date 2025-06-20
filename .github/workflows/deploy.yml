@@ -28,14 +28,14 @@ jobs:
           # Validate JSON format first
           echo "$DEPLOYMENT_CONFIG" | jq . > /dev/null || (echo "❌ Invalid JSON format!" && exit 1)
             # Inject dynamic registry and Google OAuth credentials to JSON config
-          UPDATED_CONFIG=$(echo "$DEPLOYMENT_CONFIG" | jq --arg image "$DYNAMIC_IMAGE_TAG" --arg github_url "https://github.com/${{ github.repository }}" --arg google_client_id "$GOOGLE_CLIENT_ID" --arg google_client_secret "$GOOGLE_CLIENT_SECRET" --arg frontend_url "https://millabindonesia.com" --arg cors_origin "https://millabindonesia.com,https://api.millabindonesia.com" '
+          UPDATED_CONFIG=$(echo "$DEPLOYMENT_CONFIG" | jq --arg image "$DYNAMIC_IMAGE_TAG" --arg github_url "https://github.com/${{ github.repository }}" --arg google_client_id "$GOOGLE_CLIENT_ID" --arg google_client_secret "$GOOGLE_CLIENT_SECRET" --arg frontend_url "https://millabindonesia.com" --arg cors_origin "https://millabindonesia.com,https://api.millabindonesia.com" --arg backend_url "https://api.millabindonesia.com" '
             .githubUrl = $github_url |
             .env.IMAGE_REGISTRY = $image |
             .env.GOOGLE_CLIENT_ID = $google_client_id |
             .env.GOOGLE_CLIENT_SECRET = $google_client_secret |
             .env.FRONTEND_URL = $frontend_url |
             .env.CORS_ORIGIN = $cors_origin |
-            .env.BACKEND_URL = https://api.millabindonesia.com
+            .env.BACKEND_URL = $backend_url
           ')
           
           echo "✅ Successfully updated deployment config"
