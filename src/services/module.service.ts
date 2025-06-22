@@ -55,10 +55,7 @@ export class ModuleService {
     const modules = await moduleRepository.getActiveModules();
     const userProgressList = await moduleRepository.getAllUserProgress(userId);
     
-    // Filter modules with order 1, 5, or 11
-    const homepageModules = modules.filter(module => 
-      module.order === 1 || module.order === 5 || module.order === 11
-    );
+    const homepageModules = modules
     
     // Create a map for quick lookup
     const progressMap = new Map<string, UserProgress>();

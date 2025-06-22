@@ -87,7 +87,8 @@ export class JwtService {
         httpOnly: true,
         secure: true,     // HARUS true di production
         sameSite: 'none' as const, // 'none' diperlukan untuk cross-site
-        path: '/', // Ensure cookie is available throughout the site
+        path: '/', 
+        // Ensure cookie is available throughout the site
         // Domain tidak perlu diatur karena kita menggunakan proxy di Next.js
         // yang membuat semua request melewati domain frontend
       };
