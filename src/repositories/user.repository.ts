@@ -99,6 +99,31 @@ export class UserRepository {
       return null
     }
   }
+
+  async getUserByUsername(username: string): Promise<User | null> {
+    try {
+      // Check if Firestore is initialized
+      if (!db) {
+        console.error(DB_NOT_INITIALIZED)
+        return null
+      }
+      
+      const snapshot = await db.collection(this.collection)
+        .where('username', '==', username)
+        .limit(1)
+        .get()
+      
+      if (snapshot.empty) {
+        return null
+      }
+      
+      const doc = snapshot.docs[0]
+      return { id: doc.id, ...doc.data() } as User
+    } catch (error) {
+      console.error('Error getting user by username:', error)
+      return null
+    }
+  }
   
   /**
    * Get a user by ID
