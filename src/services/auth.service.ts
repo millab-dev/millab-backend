@@ -21,7 +21,7 @@ export class AuthService {
       if (existingUserByEmail) {
         return {
           success: false,
-          error: 'Email is already registered'
+          error: 'Email sudah terdaftar'
         }
       }
       
@@ -30,20 +30,20 @@ export class AuthService {
       if (!user) {
         return {
           success: false,
-          error: 'Failed to create user'
+          error: 'Gagal membuat user'
         }
       }
       
       return {
         success: true,
-        message: 'User registered successfully',
+        message: 'User berhasil mendaftar',
         data: user
       }
     } catch (error) {
       console.error('Registration error:', error)
       return {
         success: false,
-        error: 'Registration failed'
+        error: 'Gagal mendaftar'
       }
     }
   }
@@ -60,7 +60,7 @@ export class AuthService {
       if (!auth) {
         return {
           success: false,
-          error: 'Authentication service not initialized'
+          error: 'Layanan autentikasi tidak diinisialisasi'
         }
       }
       
@@ -74,7 +74,7 @@ export class AuthService {
           console.error('Firebase API key is not configured')
           return {
             success: false,
-            error: 'Authentication configuration error'
+            error: 'Konfigurasi autentikasi tidak diatur'
           }
         }
         // Use Firebase Auth REST API for email/password authentication
@@ -98,7 +98,7 @@ export class AuthService {
           
           return {
             success: false,
-            error: 'Invalid email or password'
+            error: 'Email atau password salah'
           }
         }
 
@@ -114,7 +114,7 @@ export class AuthService {
           console.error(`User with Firebase UID ${firebaseUid} found in Firebase Auth but not in database`)
           return {
             success: false,
-            error: 'User account issue. Please contact support.'
+            error: 'Isu akun pengguna. Hubungi dukungan.'
           }
         }
         
@@ -123,21 +123,21 @@ export class AuthService {
         
         return {
           success: true,
-          message: 'Login successful',
+          message: 'Login berhasil',
           data: user
         }
       } catch (error) {
         console.error('Firebase authentication error:', error)
         return {
           success: false,
-          error: 'Authentication failed'
+          error: 'Gagal autentikasi'
         }
       }
     } catch (error) {
       console.error('Login error:', error)
       return {
         success: false,
-        error: 'Invalid email or password'
+        error: 'Email atau password salah'
       }
     }
   }
@@ -153,13 +153,13 @@ export class AuthService {
     if (!success) {
       return {
         success: false,
-        error: 'Invalid refresh token'
+        error: 'Refresh token tidak valid'
       }
     }
     
     return {
       success: true,
-      message: 'Token refreshed successfully'
+      message: 'Token berhasil diperbarui'
     }
   }
   
@@ -173,7 +173,7 @@ export class AuthService {
     
     return {
       success: true,
-      message: 'Logout successful'
+      message: 'Keluar berhasil'
     }
   }
   
@@ -201,7 +201,7 @@ export class AuthService {
       if (!auth) {
         return {
           success: false,
-          error: 'Authentication service not initialized'
+          error: 'Layanan autentikasi tidak diinisialisasi'
         }
       }
       
@@ -212,7 +212,7 @@ export class AuthService {
         console.error('Firebase API key is not configured')
         return {
           success: false,
-          error: 'Authentication configuration error'
+          error: 'Konfigurasi autentikasi tidak diatur'
         }
       }
       
@@ -221,7 +221,7 @@ export class AuthService {
       if (!user) {
         return {
           success: false,
-          error: 'User not found'
+          error: 'Pengguna tidak ditemukan'
         }
       }
       
@@ -243,7 +243,7 @@ export class AuthService {
         // Current password is incorrect
         return {
           success: false,
-          error: 'Current password is incorrect'
+          error: 'Password saat ini salah'
         }
       }
       
@@ -254,13 +254,13 @@ export class AuthService {
       
       return {
         success: true,
-        message: 'Password changed successfully'
+        message: 'Password berhasil diubah'
       }
     } catch (error) {
       console.error('Change password error:', error)
       return {
         success: false,
-        error: 'Failed to change password'
+        error: 'Gagal mengubah password'
       }
     }
   }
@@ -297,7 +297,7 @@ export class AuthService {
       if (!auth) {
         return {
           success: false,
-          error: 'Authentication service not initialized'
+          error: 'Autentikasi layanan tidak diinisialisasi'
         }
       }
 
@@ -308,7 +308,7 @@ export class AuthService {
       if (!email) {
         return {
           success: false,
-          error: 'Email not provided by Google'
+          error: 'Email tidak disediakan oleh Google'
         }
       }
 
@@ -325,7 +325,7 @@ export class AuthService {
 
         return {
           success: true,
-          message: 'Login successful',
+          message: 'Login berhasil',
           data: {
             user,
             needsProfile
@@ -354,7 +354,7 @@ export class AuthService {
         if (!newUser) {
           return {
             success: false,
-            error: 'Failed to create user account'
+            error: 'Gagal membuat akun pengguna'
           }
         }
 
@@ -363,7 +363,7 @@ export class AuthService {
 
         return {
           success: true,
-          message: 'Account created successfully',
+          message: 'Akun berhasil dibuat',
           data: {
             user: newUser,
             needsProfile: true // New Google users always need to complete profile
@@ -373,14 +373,14 @@ export class AuthService {
         console.error('Error creating Google user:', error)
         return {
           success: false,
-          error: 'Failed to create user account'
+          error: 'Gagal membuat akun pengguna'
         }
       }
     } catch (error) {
       console.error('Google Sign-In error:', error)
       return {
         success: false,
-        error: 'Google authentication failed'
+        error: 'Autentikasi Google gagal'
       }
     }
   }
@@ -404,7 +404,7 @@ export class AuthService {
       if (existingUser && existingUser.id !== userId) {
         return {
           success: false,
-          error: 'Name is already taken'
+          error: 'Nama sudah digunakan'
         }
       }
 
@@ -421,20 +421,20 @@ export class AuthService {
       if (!updatedUser) {
         return {
           success: false,
-          error: 'Failed to update user profile'
+          error: 'Gagal memperbarui profil pengguna'
         }
       }
 
       return {
         success: true,
-        message: 'Profile completed successfully',
+        message: 'Profil berhasil diperbarui',
         data: updatedUser
       }
     } catch (error) {
       console.error('Complete profile error:', error)
       return {
         success: false,
-        error: 'Failed to complete profile'
+        error: 'Gagal melengkapi profil'
       }
     }
   }
@@ -504,10 +504,10 @@ export class AuthService {
 
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text()
-        console.error('❌ Failed to exchange code for token:', errorText)
+        console.error('❌ Gagal menukar kode untuk token:', errorText)
         return {
           success: false,
-          error: 'Failed to authenticate with Google'
+          error: 'Gagal autentikasi Google'
         }
       }      const tokenData = await tokenResponse.json()
       const { access_token } = tokenData
@@ -529,7 +529,7 @@ export class AuthService {
         console.error('❌ Failed to get user info from Google:', errorText)
         return {
           success: false,
-          error: 'Failed to get user information from Google'
+          error: 'Gagal mendapatkan informasi pengguna dari Google'
         }
       }
 
@@ -547,7 +547,7 @@ export class AuthService {
         console.error('❌ No email provided by Google')
         return {
           success: false,
-          error: 'Email not provided by Google'
+          error: 'Email Google tidak ditemukan'
         }
       }
 
@@ -611,7 +611,7 @@ export class AuthService {
           console.error('❌ Failed to create user - userRepository.createUser returned null')
           return {
             success: false,
-            error: 'Failed to create user account'
+            error: 'Gagal membuat akun pengguna'
           }
         }
 
@@ -626,7 +626,7 @@ export class AuthService {
 
         return {
           success: true,
-          message: 'Account created successfully',
+          message: 'Akun berhasil dibuat',
           data: {
             user: newUser,
             needsProfile: true // New Google users always need to complete profile
@@ -636,14 +636,14 @@ export class AuthService {
         console.error('💥 Error creating Google user:', error)
         return {
           success: false,
-          error: 'Failed to create user account'
+          error: 'Gagal menautkan akun Google'
         }
       }
     } catch (error) {
       console.error('💥 Google OAuth callback error:', error)
       return {
         success: false,
-        error: 'Google authentication failed'
+        error: 'Gagal autentikasi Google'
       }
     }
   }
