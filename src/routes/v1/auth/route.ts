@@ -43,7 +43,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         set.status = 500
         return {
           success: false,
-          error: 'Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.'
+          error: 'Google OAuth belum dikonfigurasi. Mohon atur variabel lingkungan GOOGLE_CLIENT_ID dan GOOGLE_CLIENT_SECRET.'
         }
       }
       
@@ -55,7 +55,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       set.status = 500
       return {
         success: false,
-        error: 'Failed to generate Google OAuth URL'
+        error: 'Gagal membuat URL Google OAuth'
       }
     }
   })  // Google OAuth callback
@@ -135,7 +135,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     if (!userId) {
       return {
         success: false,
-        error: 'Unauthorized'
+        error: 'Tidak memiliki akses'
       }
     }
     return await authService.completeProfile(userId, body)  }, {
@@ -169,7 +169,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     if (!userId) {
       return {
         success: false,
-        error: 'Unauthorized'
+        error: 'Tidak memiliki akses'
       }
     }
     
@@ -188,14 +188,14 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     if (!userId) {
       return {
         success: false, 
-        error: 'Unauthorized'
+        error: 'Tidak memiliki akses'
       }
     }
     
     await userRepository.updateUser(userId, body)
     return {
       success: true,
-      message: "User updated successfully"
+      message: "Profil pengguna berhasil diperbarui"
     }
   },{
     body: t.Object({
@@ -218,7 +218,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     if (!userId) {
       return {
         success: false, 
-        error: 'Unauthorized'
+        error: 'Tidak memiliki akses'
       }
     }
     
@@ -228,7 +228,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     if (!user) {
       return {
         success: false,
-        error: 'User not found'
+        error: 'Pengguna tidak ditemukan'
       }
     }
     
