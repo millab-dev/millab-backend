@@ -93,15 +93,15 @@ export class PointsService {
 
         let points = correctAnswers * pointsConfig.finalQuizPoints[difficulty];
 
-        // Apply first attempt bonus
-        if (isFirstAttempt) {
-            points = Math.round(points * pointsConfig.firstAttemptBonus);
-        }
+        // // Apply first attempt bonus
+        // if (isFirstAttempt) {
+        //     points = Math.round(points * pointsConfig.firstAttemptBonus);
+        // }
 
-        // Apply streak bonus if applicable
-        if (pointsConfig.streakBonus.enabled && dayStreak >= pointsConfig.streakBonus.streakDays) {
-            points = Math.round(points * pointsConfig.streakBonus.multiplier);
-        }
+        // // Apply streak bonus if applicable
+        // if (pointsConfig.streakBonus.enabled && dayStreak >= pointsConfig.streakBonus.streakDays) {
+        //     points = Math.round(points * pointsConfig.streakBonus.multiplier);
+        // }
 
         return points;
     }
