@@ -34,13 +34,6 @@ export interface PointsConfig {
     intermediate: number;
     advanced: number;
   };
-  // Bonus multipliers
-  firstAttemptBonus: number; // Multiplier for first attempt (e.g., 1.5 = 50% bonus)
-  streakBonus: {
-    enabled: boolean;
-    streakDays: number; // Days required for streak bonus
-    multiplier: number; // Multiplier for streak bonus
-  };
   createdAt: string;
   updatedAt: string;
 }
@@ -73,17 +66,10 @@ export const DEFAULT_POINTS_CONFIG: Omit<PointsConfig, 'id' | 'createdAt' | 'upd
   quizPoints: {
     easy: 1,
     intermediate: 2,
-    advanced: 4
-  },
+    advanced: 4  },
   finalQuizPoints: {
     easy: 2,
     intermediate: 3,
     advanced: 5
-  },
-  firstAttemptBonus: 1.5,
-  streakBonus: {
-    enabled: true,
-    streakDays: 7,
-    multiplier: 1.2
   }
 };
