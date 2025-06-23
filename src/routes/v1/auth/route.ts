@@ -30,7 +30,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     return await authService.login(email, password, cookie)
   }, {
     body: t.Object({
-      email: t.String({ format: 'email' }),
+      email: t.String(),
       password: t.String()
     })
   })  // Google Sign-In OAuth redirect

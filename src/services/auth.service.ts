@@ -23,6 +23,13 @@ export class AuthService {
           error: 'Email sudah terdaftar'
         }
       }
+      const existingUserByUsername = await userRepository.getUserByUsername(userData.username)
+      if (existingUserByUsername) {
+        return {
+          success: false,
+          error: 'Username sudah terdaftar'
+        }
+      }
       
       // Check if username already exists
       const existingUserByUsername = await userRepository.getUserByUsername(userData.username)
@@ -55,7 +62,11 @@ export class AuthService {
       }
     }
   }
-  
+
+  async isEmail(identifier: string): Promise<boolean> {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    return emailRegex.test(identifier)
+  }
   /**
    * Login a user with email and password
    * @param email User email
@@ -63,13 +74,28 @@ export class AuthService {
    * @param cookie Elysia cookie context for setting tokens
    * @returns Response with user data or error
    */
-  async login(email: string, password: string, cookie: any): Promise<ApiResponse<User>> {
+  async login(identifier: string, password: string, cookie: any): Promise<ApiResponse<User>> {
     try {
       if (!auth) {
         return {
           success: false,
           error: 'Layanan autentikasi tidak diinisialisasi'
         }
+      }
+      let email = '';
+
+      const isEmail = await this.isEmail(identifier)
+      if(isEmail){
+        email = identifier
+      }else{
+        const user = await userRepository.getUserByUsername(identifier)
+        if (!user) {
+          return {
+            success: false,
+            error: 'Pengguna tidak ditemukan'
+          }
+        }
+        email = user.email
       }
       
       // In a production environment, we need to use Firebase Auth REST API
@@ -346,7 +372,7 @@ export class AuthService {
         email,
         name: name || email.split('@')[0], // Fallback name
         // These fields will be filled later
-        username: '',
+        username: name || email.split('@')[0], // Fallback username
         gender: 'Female', // Default, will be updated
         birthplace: '',
         birthdate: '',
