@@ -131,20 +131,15 @@ export class LevelConfigService {
             error: 'Points values cannot be negative'
           };
         }
-      }
-
-      if (updateData.finalQuizPoints !== undefined && updateData.finalQuizPoints < 0) {
-        return {
-          success: false,
-          error: 'Final quiz points cannot be negative'
-        };
-      }
-
-      if (updateData.firstAttemptBonus !== undefined && updateData.firstAttemptBonus < 1) {
-        return {
-          success: false,
-          error: 'First attempt bonus must be at least 1.0'
-        };
+      }      if (updateData.finalQuizPoints !== undefined) {
+        if (updateData.finalQuizPoints.easy < 0 || 
+            updateData.finalQuizPoints.intermediate < 0 || 
+            updateData.finalQuizPoints.advanced < 0) {
+          return {
+            success: false,
+            error: 'Final quiz points cannot be negative'
+          };
+        }
       }
 
       const updatedConfig = await levelConfigRepository.updatePointsConfig(configId, updateData);

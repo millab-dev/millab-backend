@@ -55,7 +55,51 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
         error: 'Failed to fetch user progression'
       }
       return response
+    }  })
+
+  // Check quiz attempt status (for warnings)
+  .get('/quiz-attempt-status/:source/:sourceId', async ({ params, request, set }) => {
+    try {
+      const userId = jwtService.getUserIdFromCookies(request)
+      if (!userId) {
+        set.status = 401
+        return { success: false, error: 'Authentication required' }
+      }
+
+      const { source, sourceId } = params
+      const validSources = ['module_quiz', 'final_quiz', 'section_read']
+      
+      if (!validSources.includes(source)) {
+        set.status = 400
+        return { success: false, error: 'Invalid source type' }
+      }
+
+      const status = await pointsService.getQuizAttemptStatus(
+        userId, 
+        source as 'module_quiz' | 'final_quiz' | 'section_read', 
+        sourceId
+      )
+
+      const response: ApiResponse<any> = {
+        success: true,
+        data: status
+      }
+
+      return response
+    } catch (error) {
+      console.error('Error checking quiz attempt status:', error)
+      set.status = 500
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Failed to check quiz attempt status'
+      }
+      return response
     }
+  }, {
+    params: t.Object({
+      source: t.String(),
+      sourceId: t.String()
+    })
   })
 
   // Award points for section read
@@ -68,12 +112,7 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
       }
 
       const { sectionId, moduleDifficulty } = body
-      console.log('Award points request:', { userId, sectionId, moduleDifficulty });
-
-      try {        const result = await pointsService.addPointsForSection(userId, sectionId, moduleDifficulty)
-        
-        // Update day streak
-        await pointsService.updateDayStreak(userId)
+      console.log('Award points request:', { userId, sectionId, moduleDifficulty });      try {        const result = await pointsService.addPointsForSection(userId, sectionId, moduleDifficulty)
 
         const response: ApiResponse<any> = {
           success: true,
@@ -113,7 +152,6 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
       moduleDifficulty: t.Enum({ Easy: 'Easy', Intermediate: 'Intermediate', Advanced: 'Advanced' })
     })
   })
-
   // Award points for quiz attempt
   .post('/award-points/quiz', async ({ body, request, set }) => {
     try {
@@ -132,24 +170,33 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
         isFirstAttempt 
       } = body
 
-      let pointsGained = 0      // Award points (only for first attempt)
-      if (isFirstAttempt) {
-        // Get user for streak calculation
-        const user = await pointsService.updateDayStreak(userId)
+      // Check first attempt status from Firebase
+      const attemptStatus = await pointsService.getQuizAttemptStatus(userId, 'module_quiz', quizId)
+      const actualIsFirstAttempt = attemptStatus.isFirstAttempt
+
+      let pointsGained = 0
+      let message = 'Quiz completed!'      // Award points only for actual first attempt
+      if (actualIsFirstAttempt) {
         pointsGained = await pointsService.calculateModuleQuizPoints(
           moduleDifficulty, 
-          score, 
-          isFirstAttempt, 
-          user.dayStreak || 0
+          score
         )
         await pointsService.addPointsForFirstAttempt(userId, pointsGained, 'module_quiz', quizId, moduleDifficulty)
+        
+        // Mark as attempted in Firebase
+        await pointsService.markAsAttempted(userId, 'module_quiz', quizId)
+        
+        message = `Kamu mendapatkan ${pointsGained} poin!`
+      } else {
+        message = 'Kamu sudah mengerjakan kuis ini, tidak ada poin yang diperoleh.'
       }
 
       const response: ApiResponse<any> = {
         success: true,
-        message: pointsGained > 0 ? `Earned ${pointsGained} points!` : 'Quiz completed!',
+        message,
         data: {
-          pointsGained
+          pointsGained,
+          isFirstAttempt: actualIsFirstAttempt
         }
       }
 
@@ -173,7 +220,6 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
       isFirstAttempt: t.Boolean()
     })
   })
-
   // Award points for final quiz attempt
   .post('/award-points/final-quiz', async ({ body, request, set }) => {
     try {
@@ -184,24 +230,35 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
       }
       
       const { finalQuizId, score, maxScore, isFirstAttempt, difficulty = 'intermediate' } = body
-      let pointsGained = 0      // Award points only for first attempt
-      if (isFirstAttempt) {
-        // Get user for streak calculation
-        const user = await pointsService.updateDayStreak(userId)
+        // Check first attempt status from Firebase
+      const attemptStatus = await pointsService.getQuizAttemptStatus(userId, 'final_quiz', finalQuizId)
+      const actualIsFirstAttempt = attemptStatus.isFirstAttempt
+
+      let pointsGained = 0
+      let message = 'Kuis final selesai!'
+
+      // Award points only for actual first attempt
+      if (actualIsFirstAttempt) {
         pointsGained = await pointsService.calculateFinalQuizPoints(
           score, 
-          difficulty as 'easy' | 'intermediate' | 'advanced',
-          isFirstAttempt, 
-          user.dayStreak || 0
+          difficulty as 'easy' | 'intermediate' | 'advanced'
         )
         await pointsService.addPointsForFirstAttempt(userId, pointsGained, 'final_quiz', finalQuizId)
+        
+        // Mark as attempted in Firebase
+        await pointsService.markAsAttempted(userId, 'final_quiz', finalQuizId)
+        
+        message = `Kamu mendapatkan ${pointsGained} poin!`
+      } else {
+        message = 'Kamu sudah mengerjakan kuis ini, tidak ada poin yang diperoleh.'
       }
 
       const response: ApiResponse<any> = {
         success: true,
-        message: pointsGained > 0 ? `Earned ${pointsGained} points!` : 'Final quiz completed!',
+        message,
         data: {
-          pointsGained
+          pointsGained,
+          isFirstAttempt: actualIsFirstAttempt
         }
       }
 
@@ -264,7 +321,6 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
 
     try {
       const result = await pointsService.addPointsForSection(userId, sectionId, moduleDifficulty)
-      await pointsService.updateDayStreak(userId)
 
       return {
         success: true,
@@ -297,7 +353,6 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
       moduleDifficulty: t.Enum({ Easy: 'Easy', Intermediate: 'Intermediate', Advanced: 'Advanced' })
     })
   })
-
   .post('/award-exp/quiz', async ({ body, request, set }) => {
     // Redirect to points endpoint
     const userId = jwtService.getUserIdFromCookies(request)
@@ -307,21 +362,32 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
     }
 
     const { quizId, moduleDifficulty, score, maxScore, attemptNumber, isFirstAttempt } = body
-    
-    let pointsGained = 0
+      // Check first attempt status from Firebase
+    const attemptStatus = await pointsService.getQuizAttemptStatus(userId, 'module_quiz', quizId)
+    const actualIsFirstAttempt = attemptStatus.isFirstAttempt
 
-    if (isFirstAttempt) {
-      const user = await pointsService.updateDayStreak(userId)
-      pointsGained = await pointsService.calculateModuleQuizPoints(moduleDifficulty, score, isFirstAttempt, user.dayStreak || 0)
+    let pointsGained = 0
+    let message = 'Kuis selesai!'
+
+    if (actualIsFirstAttempt) {
+      pointsGained = await pointsService.calculateModuleQuizPoints(moduleDifficulty, score)
       await pointsService.addPointsForFirstAttempt(userId, pointsGained, 'module_quiz', quizId, moduleDifficulty)
+      
+      // Mark as attempted in Firebase
+      await pointsService.markAsAttempted(userId, 'module_quiz', quizId)
+      
+      message = `Kamu mendapatkan ${pointsGained} poin!`
+    } else {
+      message = 'Kamu sudah mengerjakan kuis ini, tidak ada poin yang diperoleh.'
     }
 
     return {
       success: true,
-      message: pointsGained > 0 ? `Earned ${pointsGained} points!` : 'Quiz completed!',
+      message,
       data: {
         expGained: 0, // Keep for compatibility
-        pointsGained
+        pointsGained,
+        isFirstAttempt: actualIsFirstAttempt
       }
     }
   }, {
@@ -334,7 +400,6 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
       isFirstAttempt: t.Boolean()
     })
   })
-
   .post('/award-exp/final-quiz', async ({ body, request, set }) => {
     // Redirect to points endpoint
     const userId = jwtService.getUserIdFromCookies(request)
@@ -342,25 +407,35 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
       set.status = 401
       return { success: false, error: 'Authentication required' }
     }    const { finalQuizId, score, maxScore, isFirstAttempt, difficulty = 'intermediate' } = body
-    let pointsGained = 0
+      // Check first attempt status from Firebase
+    const attemptStatus = await pointsService.getQuizAttemptStatus(userId, 'final_quiz', finalQuizId)
+    const actualIsFirstAttempt = attemptStatus.isFirstAttempt
 
-    if (isFirstAttempt) {
-      const user = await pointsService.updateDayStreak(userId)
+    let pointsGained = 0
+    let message = 'Kuis final selesai!'
+
+    if (actualIsFirstAttempt) {
       pointsGained = await pointsService.calculateFinalQuizPoints(
         score, 
-        difficulty as 'easy' | 'intermediate' | 'advanced',
-        isFirstAttempt, 
-        user.dayStreak || 0
+        difficulty as 'easy' | 'intermediate' | 'advanced'
       )
       await pointsService.addPointsForFirstAttempt(userId, pointsGained, 'final_quiz', finalQuizId)
+      
+      // Mark as attempted in Firebase
+      await pointsService.markAsAttempted(userId, 'final_quiz', finalQuizId)
+      
+      message = `Kamu mendapatkan ${pointsGained} poin!`
+    } else {
+      message = 'Kamu sudah mengerjakan kuis ini, tidak ada poin yang diperoleh.'
     }
 
     return {
       success: true,
-      message: pointsGained > 0 ? `Earned ${pointsGained} points!` : 'Final quiz completed!',
+      message,
       data: {
         expGained: 0, // Keep for compatibility
-        pointsGained
+        pointsGained,
+        isFirstAttempt: actualIsFirstAttempt
       }
     }  }, {
     body: t.Object({

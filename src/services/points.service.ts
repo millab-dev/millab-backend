@@ -4,6 +4,7 @@ import { levelConfigRepository } from "../repositories/levelConfig.repository";
 import { UserScore } from "../models/userScore";
 import { User, PointsGainRecord } from "../models/user";
 import { LevelConfig } from "../models/levelConfig";
+import { db } from "../config/firebase";
 
 export interface LeaderboardEntry {
     userId: string;
@@ -11,21 +12,92 @@ export interface LeaderboardEntry {
     score: number;
 }
 
+export interface QuizAttemptResult {
+    isFirstAttempt: boolean;
+    pointsEarned: number;
+    message: string;
+}
+
 export class PointsService {
     private userScoreRepository: UserScoreRepository;
-    private userRepository: UserRepository;
-
-    constructor() {
+    private userRepository: UserRepository;    constructor() {
         this.userScoreRepository = new UserScoreRepository();
         this.userRepository = new UserRepository();
     }
 
     /**
+     * Check if user has completed a quiz/section for the first time
+     * Initialize Firebase document if it doesn't exist
+     */    private async checkFirstAttempt(userId: string, source: 'module_quiz' | 'final_quiz' | 'section_read', sourceId: string): Promise<boolean> {
+        try {
+            if (!db) {
+                console.warn('Firebase not initialized, defaulting to false for first attempt check');
+                return false;
+            }
+
+            const userAttemptsRef = db.collection('userQuizAttempts').doc(userId);
+            const userAttemptsDoc = await userAttemptsRef.get();
+
+            if (!userAttemptsDoc.exists) {
+                // Initialize user attempts document
+                await userAttemptsRef.set({
+                    userId,
+                    attempts: {},
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                });
+                return true; // First attempt for this user
+            }
+
+            const userData = userAttemptsDoc.data();
+            const attemptKey = `${source}_${sourceId}`;
+            
+            // Check if this specific quiz/section has been attempted before
+            return !userData?.attempts?.[attemptKey];
+        } catch (error) {
+            console.error('Error checking first attempt:', error);
+            // If there's an error, assume it's not the first attempt to be safe
+            return false;
+        }
+    }
+
+    /**
+     * Mark a quiz/section as attempted in Firebase
+     */    async markAsAttempted(userId: string, source: 'module_quiz' | 'final_quiz' | 'section_read', sourceId: string): Promise<void> {
+        try {
+            if (!db) {
+                console.warn('Firebase not initialized, cannot mark as attempted');
+                return;
+            }
+
+            const userAttemptsRef = db.collection('userQuizAttempts').doc(userId);
+            const attemptKey = `${source}_${sourceId}`;
+            
+            await userAttemptsRef.update({
+                [`attempts.${attemptKey}`]: {
+                    completedAt: new Date().toISOString(),
+                    source,
+                    sourceId
+                },
+                updatedAt: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error('Error marking as attempted:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get user's quiz attempt status for frontend warnings
+     */
+    async getQuizAttemptStatus(userId: string, source: 'module_quiz' | 'final_quiz' | 'section_read', sourceId: string): Promise<{ isFirstAttempt: boolean }> {
+        const isFirstAttempt = await this.checkFirstAttempt(userId, source, sourceId);
+        return { isFirstAttempt };
+    }/**
      * Calculate points for section reading based on difficulty
      */
     async calculateSectionPoints(
-        difficulty: 'Easy' | 'Intermediate' | 'Advanced',
-        dayStreak: number = 0
+        difficulty: 'Easy' | 'Intermediate' | 'Advanced'
     ): Promise<number> {
         const pointsConfig = await levelConfigRepository.getPointsConfig();
         if (!pointsConfig) {
@@ -35,24 +107,15 @@ export class PointsService {
         }
 
         const difficultyKey = difficulty.toLowerCase() as 'easy' | 'intermediate' | 'advanced';
-        let points = pointsConfig.sectionPoints[difficultyKey];
-
-        // Apply streak bonus if applicable
-        if (pointsConfig.streakBonus.enabled && dayStreak >= pointsConfig.streakBonus.streakDays) {
-            points = Math.round(points * pointsConfig.streakBonus.multiplier);
-        }
+        const points = pointsConfig.sectionPoints[difficultyKey];
 
         return points;
-    }
-
-    /**
+    }    /**
      * Calculate points for module quiz based on difficulty and correct answers
      */
     async calculateModuleQuizPoints(
         difficulty: 'Easy' | 'Intermediate' | 'Advanced',
-        correctAnswers: number,
-        isFirstAttempt: boolean = false,
-        dayStreak: number = 0
+        correctAnswers: number
     ): Promise<number> {
         const pointsConfig = await levelConfigRepository.getPointsConfig();
         if (!pointsConfig) {
@@ -62,17 +125,7 @@ export class PointsService {
         }
 
         const difficultyKey = difficulty.toLowerCase() as 'easy' | 'intermediate' | 'advanced';
-        let points = correctAnswers * pointsConfig.quizPoints[difficultyKey];
-
-        // Apply first attempt bonus
-        if (isFirstAttempt) {
-            points = Math.round(points * pointsConfig.firstAttemptBonus);
-        }
-
-        // Apply streak bonus if applicable
-        if (pointsConfig.streakBonus.enabled && dayStreak >= pointsConfig.streakBonus.streakDays) {
-            points = Math.round(points * pointsConfig.streakBonus.multiplier);
-        }
+        const points = correctAnswers * pointsConfig.quizPoints[difficultyKey];
 
         return points;
     }    /**
@@ -80,9 +133,7 @@ export class PointsService {
      */
     async calculateFinalQuizPoints(
         correctAnswers: number,
-        difficulty: 'easy' | 'intermediate' | 'advanced' = 'intermediate',
-        isFirstAttempt: boolean = false,
-        dayStreak: number = 0
+        difficulty: 'easy' | 'intermediate' | 'advanced' = 'intermediate'
     ): Promise<number> {
         const pointsConfig = await levelConfigRepository.getPointsConfig();
         if (!pointsConfig) {
@@ -91,22 +142,10 @@ export class PointsService {
             return correctAnswers * defaultPoints[difficulty];
         }
 
-        let points = correctAnswers * pointsConfig.finalQuizPoints[difficulty];
-
-        // // Apply first attempt bonus
-        // if (isFirstAttempt) {
-        //     points = Math.round(points * pointsConfig.firstAttemptBonus);
-        // }
-
-        // // Apply streak bonus if applicable
-        // if (pointsConfig.streakBonus.enabled && dayStreak >= pointsConfig.streakBonus.streakDays) {
-        //     points = Math.round(points * pointsConfig.streakBonus.multiplier);
-        // }
+        const points = correctAnswers * pointsConfig.finalQuizPoints[difficulty];
 
         return points;
-    }
-
-    /**
+    }    /**
      * Add points to user score (only for first attempts)
      */
     async addPointsForFirstAttempt(
@@ -135,7 +174,7 @@ export class PointsService {
         await this.addPointsHistory(userId, source, sourceId, points, difficulty);
 
         return userScore;
-    }    /**
+    }/**
      * Add points history record to user
      */
     private async addPointsHistory(
@@ -230,9 +269,7 @@ export class PointsService {
         
         const userIndex = sortedScores.findIndex(score => score.userId === userId);
         return userIndex >= 0 ? userIndex + 1 : -1; // Return -1 if user not found
-    }
-
-    /**
+    }    /**
      * Get user progression data (points-based)
      */
     async getUserProgression(userId: string) {
@@ -243,7 +280,9 @@ export class PointsService {
             }
 
             const userPoints = await this.getUserPoints(userId);
-            const userRank = await this.getUserRank(userId);            // Get current level based on points
+            const userRank = await this.getUserRank(userId);
+
+            // Get current level based on points
             const levels = await levelConfigRepository.getAllLevels();
             const activeLevels = levels.filter((l: LevelConfig) => l.isActive).sort((a: LevelConfig, b: LevelConfig) => a.level - b.level);
             
@@ -274,8 +313,6 @@ export class PointsService {
                 levelTitle: currentLevel.title,
                 pointsForNextLevel: nextLevel ? nextLevel.minPoints - userPoints : 0,
                 nextLevelTitle: nextLevel?.title || null,
-                dayStreak: user.dayStreak || 0,
-                lastActiveDate: user.lastActiveDate,
                 rank: userRank,
                 pointsHistory: user.pointsHistory || []
             };
@@ -305,11 +342,8 @@ export class PointsService {
                     pointsGained: 0,
                     newLevel: null
                 };
-            }
-
-            // Calculate points
-            const dayStreak = user.dayStreak || 0;
-            const points = await this.calculateSectionPoints(difficulty, dayStreak);            // Add points to user score
+            }            // Calculate points
+            const points = await this.calculateSectionPoints(difficulty);// Add points to user score
             const previousPoints = await this.getUserPoints(userId);
             await this.userScoreRepository.addScoreToUserScore(userId, points);
 
@@ -360,54 +394,4 @@ export class PointsService {
             console.error('Error adding points for section:', error);
             throw error;
         }
-    }
-
-    /**
-     * Update user's day streak
-     */
-    async updateDayStreak(userId: string): Promise<User> {
-        try {
-            const user = await this.userRepository.getUserById(userId);
-            if (!user) {
-                throw new Error('User not found');
-            }
-
-            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-            const lastActiveDate = user.lastActiveDate ? new Date(user.lastActiveDate).toISOString().split('T')[0] : null;
-
-            let newStreak = user.dayStreak || 0;
-
-            if (lastActiveDate === today) {
-                // Already active today, no streak update needed
-                return user;
-            } else if (lastActiveDate === this.getPreviousDay(today)) {
-                // Consecutive day, increment streak
-                newStreak += 1;
-            } else {
-                // Streak broken or first time, reset to 1
-                newStreak = 1;
-            }
-
-            // Update user
-            const updatedUser = await this.userRepository.updateUser(userId, {
-                dayStreak: newStreak,
-                lastActiveDate: new Date().toISOString()
-            });
-
-            return updatedUser || user;
-
-        } catch (error) {
-            console.error('Error updating day streak:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Helper method to get previous day in YYYY-MM-DD format
-     */
-    private getPreviousDay(dateStr: string): string {
-        const date = new Date(dateStr);
-        date.setDate(date.getDate() - 1);
-        return date.toISOString().split('T')[0];
-    }
-}
+    }}

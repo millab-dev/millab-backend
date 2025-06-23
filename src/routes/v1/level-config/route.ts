@@ -71,18 +71,15 @@ export const levelConfigRoutes = new Elysia({ prefix: "/level-config" })
         easy: t.Number({ minimum: 0 }),
         intermediate: t.Number({ minimum: 0 }),
         advanced: t.Number({ minimum: 0 })
-      })),
-      quizPoints: t.Optional(t.Object({
+      })),      quizPoints: t.Optional(t.Object({
         easy: t.Number({ minimum: 0 }),
         intermediate: t.Number({ minimum: 0 }),
         advanced: t.Number({ minimum: 0 })
       })),
-      finalQuizPoints: t.Optional(t.Number({ minimum: 0 })),
-      firstAttemptBonus: t.Optional(t.Number({ minimum: 1 })),
-      streakBonus: t.Optional(t.Object({
-        enabled: t.Boolean(),
-        streakDays: t.Number({ minimum: 1 }),
-        multiplier: t.Number({ minimum: 1 })
+      finalQuizPoints: t.Optional(t.Object({
+        easy: t.Number({ minimum: 0 }),
+        intermediate: t.Number({ minimum: 0 }),
+        advanced: t.Number({ minimum: 0 })
       }))
     })
   })
