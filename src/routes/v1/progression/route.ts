@@ -181,8 +181,9 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
       if (!userId) {
         set.status = 401
         return { success: false, error: 'Authentication required' }
-      }      const { finalQuizId, score, maxScore, isFirstAttempt, difficulty = 'intermediate' } = body
-
+      }
+      
+      const { finalQuizId, score, maxScore, isFirstAttempt, difficulty = 'intermediate' } = body
       let pointsGained = 0      // Award points only for first attempt
       if (isFirstAttempt) {
         // Get user for streak calculation
