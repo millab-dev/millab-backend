@@ -23,14 +23,7 @@ export class AuthService {
           error: 'Email sudah terdaftar'
         }
       }
-      const existingUserByUsername = await userRepository.getUserByUsername(userData.username)
-      if (existingUserByUsername) {
-        return {
-          success: false,
-          error: 'Username sudah terdaftar'
-        }
-      }
-      
+ 
       // Check if username already exists
       const existingUserByUsername = await userRepository.getUserByUsername(userData.username)
       if (existingUserByUsername) {
@@ -348,11 +341,11 @@ export class AuthService {
 
       // Check if user already exists in our database
       let user = await userRepository.getUserById(uid)
-
+      
       if (user) {
         // User exists, check if profile is complete
         const needsProfile = !user.name || !user.gender || !user.birthplace || 
-                            !user.birthdate || !user.socializationLocation || !user.phoneNumber
+                            !user.birthdate || !user.socializationLocation // phoneNumber is optional
 
         // Set JWT tokens as cookies
         jwtService.setTokenCookies(cookie, user.id)
@@ -430,7 +423,7 @@ export class AuthService {
     birthplace: string
     birthdate: string
     socializationLocation: string
-    phoneNumber: string
+    phoneNumber?: string // Make phone number optional
   }): Promise<ApiResponse<User>> {
     try {
       // Check if name is already taken by another user
@@ -599,11 +592,10 @@ export class AuthService {
       console.log('🔍 Checking if user exists in database...')
       let user = await userRepository.getUserByEmail(email)
       
-      if (user) {
-        console.log('✅ Existing user found:', { userId: user.id, email: user.email })
+      if (user) {        console.log('✅ Existing user found:', { userId: user.id, email: user.email })
         // User exists, check if profile is complete
         const needsProfile = !user.name || !user.gender || !user.birthplace || 
-                            !user.birthdate || !user.socializationLocation || !user.phoneNumber
+                            !user.birthdate || !user.socializationLocation // phoneNumber is optional
 
         console.log('📋 Profile completeness check:', {
           hasname: !!user.name,

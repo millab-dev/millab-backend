@@ -9,17 +9,22 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   // Register a new user
   .post('/register', async ({ body }) => {
     console.log("[route] REGISTERING USER")
-    return await authService.register(body)  }, {
+    // Provide default empty string for optional phoneNumber
+    const userData = {
+      ...body,
+      phoneNumber: body.phoneNumber || ''
+    }
+    return await authService.register(userData)
+  }, {
     body: t.Object({
-      name: t.String(),
-      username: t.String(),
+      name: t.String(),      username: t.String(),
       email: t.String({ format: 'email' }),
       password: t.String({ minLength: 8 }),
       gender: t.Enum({ Male: 'Male', Female: 'Female' }), // Menggunakan enum untuk validasi
       birthplace: t.String(),
       birthdate: t.String(),
       socializationLocation: t.String(),
-      phoneNumber: t.String(),
+      phoneNumber: t.Optional(t.String()), // Make phone number optional
       photoURL: t.Optional(t.String())
     })
   })
@@ -136,17 +141,21 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       return {
         success: false,
         error: 'Tidak memiliki akses'
-      }
+      }    }
+    // Provide default empty string for optional phoneNumber
+    const profileData = {
+      ...body,
+      phoneNumber: body.phoneNumber || ''
     }
-    return await authService.completeProfile(userId, body)  }, {
-    body: t.Object({
-      name: t.String(),
+    return await authService.completeProfile(userId, profileData)
+  }, {
+    body: t.Object({      name: t.String(),
       username: t.String(),
       gender: t.Enum({ Male: 'Male', Female: 'Female' }),
       birthplace: t.String(),
       birthdate: t.String(),
       socializationLocation: t.String(),
-      phoneNumber: t.String()
+      phoneNumber: t.Optional(t.String()) // Make phone number optional
     })
   })
   
