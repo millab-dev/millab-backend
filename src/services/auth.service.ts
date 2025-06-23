@@ -12,8 +12,7 @@ export class AuthService {
    * Register a new user
    * @param userData User registration data
    * @returns Response with the created user or error
-   */
-  async register(userData: CreateUserData): Promise<ApiResponse<User>> {
+   */  async register(userData: CreateUserData): Promise<ApiResponse<User>> {
     try {
       // Check if email already exists
       console.log("REGISTERING USER")
@@ -24,11 +23,13 @@ export class AuthService {
           error: 'Email sudah terdaftar'
         }
       }
+ 
+      // Check if username already exists
       const existingUserByUsername = await userRepository.getUserByUsername(userData.username)
       if (existingUserByUsername) {
         return {
           success: false,
-          error: 'Username sudah terdaftar'
+          error: 'Username sudah digunakan'
         }
       }
       
@@ -340,11 +341,11 @@ export class AuthService {
 
       // Check if user already exists in our database
       let user = await userRepository.getUserById(uid)
-
+      
       if (user) {
         // User exists, check if profile is complete
         const needsProfile = !user.name || !user.gender || !user.birthplace || 
-                            !user.birthdate || !user.socializationLocation || !user.phoneNumber
+                            !user.birthdate || !user.socializationLocation // phoneNumber is optional
 
         // Set JWT tokens as cookies
         jwtService.setTokenCookies(cookie, user.id)
@@ -410,7 +411,6 @@ export class AuthService {
       }
     }
   }
-
   /**
    * Complete user profile after Google Sign-In
    * @param userId User ID
@@ -418,11 +418,12 @@ export class AuthService {
    * @returns Response with updated user data or error
    */  async completeProfile(userId: string, profileData: {
     name: string
+    username: string
     gender: 'Male' | 'Female'
     birthplace: string
     birthdate: string
     socializationLocation: string
-    phoneNumber: string
+    phoneNumber?: string // Make phone number optional
   }): Promise<ApiResponse<User>> {
     try {
       // Check if name is already taken by another user
@@ -434,9 +435,19 @@ export class AuthService {
         }
       }
 
+      // Check if username is already taken by another user
+      const existingUserByUsername = await userRepository.getUserByUsername(profileData.username)
+      if (existingUserByUsername && existingUserByUsername.id !== userId) {
+        return {
+          success: false,
+          error: 'Username sudah digunakan'
+        }
+      }
+
       // Update the user with the complete profile
       const updatedUser = await userRepository.updateUser(userId, {
         name: profileData.name,
+        username: profileData.username,
         gender: profileData.gender,
         birthplace: profileData.birthplace,
         birthdate: profileData.birthdate,
@@ -581,11 +592,10 @@ export class AuthService {
       console.log('🔍 Checking if user exists in database...')
       let user = await userRepository.getUserByEmail(email)
       
-      if (user) {
-        console.log('✅ Existing user found:', { userId: user.id, email: user.email })
+      if (user) {        console.log('✅ Existing user found:', { userId: user.id, email: user.email })
         // User exists, check if profile is complete
         const needsProfile = !user.name || !user.gender || !user.birthplace || 
-                            !user.birthdate || !user.socializationLocation || !user.phoneNumber
+                            !user.birthdate || !user.socializationLocation // phoneNumber is optional
 
         console.log('📋 Profile completeness check:', {
           hasname: !!user.name,

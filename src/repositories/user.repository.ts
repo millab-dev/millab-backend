@@ -208,7 +208,6 @@ export class UserRepository {
     }
   }
   
-  
     /**
    * Update a user
    */

@@ -1,15 +1,36 @@
 import { Elysia, t } from 'elysia'
-import { ProgressionService } from '../../../services/progression.service'
 import { PointsService } from '../../../services/points.service'
 import { jwtService } from '../../../services/jwt.service'
+import { levelConfigService } from '../../../services/levelConfig.service'
 import { ApiResponse } from '../../../interface'
 
-const progressionService = new ProgressionService()
 const pointsService = new PointsService()
 
 export const progressionRoutes = new Elysia({ prefix: '/progression' })
 
-  // Get user's progression data (XP, level, day streak)
+  // Initialize default level configurations (admin only - to be called once)
+  .post('/init-defaults', async ({ request, set }) => {
+    try {
+      const userId = jwtService.getUserIdFromCookies(request)
+      if (!userId) {
+        set.status = 401
+        return { success: false, error: 'Authentication required' }
+      }
+
+      await levelConfigService.initializeDefaults()
+      
+      return {
+        success: true,
+        message: 'Default level configurations initialized'
+      }
+    } catch (error) {
+      console.error('Error initializing defaults:', error)
+      set.status = 500
+      return { success: false, error: 'Failed to initialize defaults' }
+    }
+  })
+
+  // Get user's progression data (points-based level, day streak)
   .get('/me', async ({ request, set }) => {
     try {
       const userId = jwtService.getUserIdFromCookies(request)
@@ -18,17 +39,11 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
         return { success: false, error: 'Authentication required' }
       }
 
-      const progression = await progressionService.getUserProgression(userId)
-      const points = await pointsService.getUserPoints(userId)
-      const rank = await pointsService.getUserRank(userId)
+      const progression = await pointsService.getUserProgression(userId)
 
       const response: ApiResponse<any> = {
         success: true,
-        data: {
-          ...progression,
-          points,
-          rank
-        }
+        data: progression
       }
 
       return response
@@ -43,8 +58,8 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
     }
   })
 
-  // Award XP for section read  // Award XP for section read
-  .post('/award-exp/section', async ({ body, request, set }) => {
+  // Award points for section read
+  .post('/award-points/section', async ({ body, request, set }) => {
     try {
       const userId = jwtService.getUserIdFromCookies(request)
       if (!userId) {
@@ -53,59 +68,42 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
       }
 
       const { sectionId, moduleDifficulty } = body
-      console.log('Award XP request:', { userId, sectionId, moduleDifficulty });
+      console.log('Award points request:', { userId, sectionId, moduleDifficulty });
 
-      // Check if user already gained XP from this section
-      const hasAlreadyGained = await progressionService.hasAlreadyGainedExp(
-        userId, 
-        'section_read', 
-        sectionId
-      )
+      try {        const result = await pointsService.addPointsForSection(userId, sectionId, moduleDifficulty)
+        
+        // Update day streak
+        await pointsService.updateDayStreak(userId)
 
-      if (hasAlreadyGained) {
-        console.log('XP already awarded for section:', sectionId);
-        set.status = 400
-        const response: ApiResponse<null> = {
-          success: false,
-          error: 'XP already awarded for this section'
+        const response: ApiResponse<any> = {
+          success: true,
+          message: `Earned ${result.pointsGained} points for reading this section!`,          data: {
+            pointsGained: result.pointsGained,
+            levelUp: result.levelUp || false,
+            newLevel: result.newLevel
+          }
         }
+
+        console.log('Points awarded successfully:', { pointsGained: result.pointsGained });
         return response
-      }
-
-      const expGain = progressionService.getExpForSectionRead(moduleDifficulty)
-      console.log('Awarding XP:', expGain, 'for difficulty:', moduleDifficulty);
-      
-      const result = await progressionService.addExperience(
-        userId, 
-        expGain, 
-        'section_read', 
-        sectionId
-      )
-
-      // Update day streak
-      await progressionService.updateDayStreak(userId)
-
-      const response: ApiResponse<any> = {
-        success: true,
-        message: `Gained ${expGain} XP!${result.leveledUp ? ` Level up to ${result.newLevel}!` : ''}`,
-        data: {
-          expGained: expGain,
-          leveledUp: result.leveledUp,
-          newLevel: result.newLevel,
-          user: result.user
+      } catch (error) {
+        if (error instanceof Error && error.message === 'Points already awarded for this section') {
+          console.log('Points already awarded for section:', sectionId);
+          set.status = 400
+          return {
+            success: false,
+            error: 'Points already awarded for this section'
+          }
         }
+        throw error; // Re-throw other errors
       }
-
-      console.log('XP awarded successfully:', { expGained: expGain, leveledUp: result.leveledUp });
-      return response    } catch (error) {
-      console.error('=== ERROR AWARDING SECTION XP ===');
+    } catch (error) {
+      console.error('=== ERROR AWARDING SECTION POINTS ===');
       console.error('Error details:', error);
-      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       set.status = 500
       const response: ApiResponse<null> = {
         success: false,
-        error: 'Failed to award XP'
+        error: 'Failed to award points'
       }
       return response
     }
@@ -116,8 +114,8 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
     })
   })
 
-  // Award XP and points for quiz attempt
-  .post('/award-exp/quiz', async ({ body, request, set }) => {
+  // Award points for quiz attempt
+  .post('/award-points/quiz', async ({ body, request, set }) => {
     try {
       const userId = jwtService.getUserIdFromCookies(request)
       if (!userId) {
@@ -134,57 +132,34 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
         isFirstAttempt 
       } = body
 
-      let expGained = 0
-      let pointsGained = 0
-      let leveledUp = false
-      let newLevel: number | undefined
-
-      // Award XP (only for first 2 attempts)
-      const hasReachedExpLimit = await progressionService.hasAlreadyGainedExp(
-        userId, 
-        'quiz_attempt', 
-        quizId, 
-        2 // Max 2 attempts for XP
-      )
-
-      if (!hasReachedExpLimit) {
-        expGained = progressionService.getExpForQuizAttempt(moduleDifficulty, score, maxScore)
-        const expResult = await progressionService.addExperience(
-          userId, 
-          expGained, 
-          'quiz_attempt', 
-          quizId,
-          attemptNumber
-        )
-        leveledUp = expResult.leveledUp
-        newLevel = expResult.newLevel
-      }      // Award points (only for first attempt)
+      let pointsGained = 0      // Award points (only for first attempt)
       if (isFirstAttempt) {
-        pointsGained = pointsService.calculateModuleQuizPoints(moduleDifficulty, score)
+        // Get user for streak calculation
+        const user = await pointsService.updateDayStreak(userId)
+        pointsGained = await pointsService.calculateModuleQuizPoints(
+          moduleDifficulty, 
+          score, 
+          isFirstAttempt, 
+          user.dayStreak || 0
+        )
         await pointsService.addPointsForFirstAttempt(userId, pointsGained, 'module_quiz', quizId, moduleDifficulty)
       }
 
-      // Update day streak
-      await progressionService.updateDayStreak(userId)
-
       const response: ApiResponse<any> = {
         success: true,
-        message: `${expGained > 0 ? `Gained ${expGained} XP!` : ''}${pointsGained > 0 ? ` Earned ${pointsGained} points!` : ''}${leveledUp ? ` Level up to ${newLevel}!` : ''}`,
+        message: pointsGained > 0 ? `Earned ${pointsGained} points!` : 'Quiz completed!',
         data: {
-          expGained,
-          pointsGained,
-          leveledUp,
-          newLevel
+          pointsGained
         }
       }
 
       return response
     } catch (error) {
-      console.error('Error awarding quiz rewards:', error)
+      console.error('Error awarding quiz points:', error)
       set.status = 500
       const response: ApiResponse<null> = {
         success: false,
-        error: 'Failed to award quiz rewards'
+        error: 'Failed to award quiz points'
       }
       return response
     }
@@ -199,81 +174,52 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
     })
   })
 
-  // Award XP and points for final quiz
-  .post('/award-exp/final-quiz', async ({ body, request, set }) => {
+  // Award points for final quiz attempt
+  .post('/award-points/final-quiz', async ({ body, request, set }) => {
     try {
       const userId = jwtService.getUserIdFromCookies(request)
       if (!userId) {
         set.status = 401
         return { success: false, error: 'Authentication required' }
-      }
+      }      const { finalQuizId, score, maxScore, isFirstAttempt, difficulty = 'intermediate' } = body
 
-      const { finalQuizId, score, maxScore, isFirstAttempt } = body
-
-      let expGained = 0
-      let pointsGained = 0
-      let leveledUp = false
-      let newLevel: number | undefined
-
-      // Award XP and points only for first attempt
+      let pointsGained = 0      // Award points only for first attempt
       if (isFirstAttempt) {
-        const hasAlreadyGained = await progressionService.hasAlreadyGainedExp(
-          userId, 
-          'final_quiz', 
-          finalQuizId
+        // Get user for streak calculation
+        const user = await pointsService.updateDayStreak(userId)
+        pointsGained = await pointsService.calculateFinalQuizPoints(
+          score, 
+          difficulty as 'easy' | 'intermediate' | 'advanced',
+          isFirstAttempt, 
+          user.dayStreak || 0
         )
-
-        if (!hasAlreadyGained) {
-          // Award XP (base 50 XP for final quiz)
-          const baseExpForFinalQuiz = 50
-          const scoreMultiplier = score / maxScore
-          expGained = Math.round(baseExpForFinalQuiz * scoreMultiplier)
-          
-          const expResult = await progressionService.addExperience(
-            userId, 
-            expGained, 
-            'final_quiz', 
-            finalQuizId
-          )
-          leveledUp = expResult.leveledUp
-          newLevel = expResult.newLevel
-
-          // Award points (use existing userScore system for final quiz)
-          pointsGained = score
-          await pointsService.addPointsForFirstAttempt(userId, pointsGained, 'final_quiz', finalQuizId)
-        }
+        await pointsService.addPointsForFirstAttempt(userId, pointsGained, 'final_quiz', finalQuizId)
       }
-
-      // Update day streak
-      await progressionService.updateDayStreak(userId)
 
       const response: ApiResponse<any> = {
         success: true,
-        message: `${expGained > 0 ? `Gained ${expGained} XP!` : ''}${pointsGained > 0 ? ` Earned ${pointsGained} points!` : ''}${leveledUp ? ` Level up to ${newLevel}!` : ''}`,
+        message: pointsGained > 0 ? `Earned ${pointsGained} points!` : 'Final quiz completed!',
         data: {
-          expGained,
-          pointsGained,
-          leveledUp,
-          newLevel
+          pointsGained
         }
       }
 
       return response
     } catch (error) {
-      console.error('Error awarding final quiz rewards:', error)
+      console.error('Error awarding final quiz points:', error)
       set.status = 500
       const response: ApiResponse<null> = {
         success: false,
-        error: 'Failed to award final quiz rewards'
+        error: 'Failed to award final quiz points'
       }
-      return response
-    }
+      return response    }
   }, {
     body: t.Object({
       finalQuizId: t.String(),
       score: t.Number(),
       maxScore: t.Number(),
-      isFirstAttempt: t.Boolean()
+      isFirstAttempt: t.Boolean(),
+      difficulty: t.Optional(t.Union([t.Literal('easy'), t.Literal('intermediate'), t.Literal('advanced')]))
     })
   })
 
@@ -298,4 +244,129 @@ export const progressionRoutes = new Elysia({ prefix: '/progression' })
       }
       return response
     }
+  }, {
+    query: t.Object({
+      limit: t.Optional(t.String())
+    })
   })
+
+  // Legacy XP endpoints (maintain compatibility for now, but redirect to points)
+  .post('/award-exp/section', async ({ body, request, set }) => {
+    // Redirect to points endpoint
+    const userId = jwtService.getUserIdFromCookies(request)
+    if (!userId) {
+      set.status = 401
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const { sectionId, moduleDifficulty } = body
+
+    try {
+      const result = await pointsService.addPointsForSection(userId, sectionId, moduleDifficulty)
+      await pointsService.updateDayStreak(userId)
+
+      return {
+        success: true,
+        message: `Earned ${result.pointsGained} points for reading this section!`,        data: {
+          expGained: result.pointsGained, // Keep old field name for compatibility
+          pointsGained: result.pointsGained,
+          levelUp: result.levelUp || false,
+          newLevel: result.newLevel
+        }
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Points already awarded for this section') {
+        set.status = 400
+        return {
+          success: false,
+          error: 'Points already awarded for this section'
+        }
+      }
+      
+      console.error('Error awarding section points:', error)
+      set.status = 500
+      return {
+        success: false,
+        error: 'Failed to award points'
+      }
+    }
+  }, {
+    body: t.Object({
+      sectionId: t.String(),
+      moduleDifficulty: t.Enum({ Easy: 'Easy', Intermediate: 'Intermediate', Advanced: 'Advanced' })
+    })
+  })
+
+  .post('/award-exp/quiz', async ({ body, request, set }) => {
+    // Redirect to points endpoint
+    const userId = jwtService.getUserIdFromCookies(request)
+    if (!userId) {
+      set.status = 401
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const { quizId, moduleDifficulty, score, maxScore, attemptNumber, isFirstAttempt } = body
+    
+    let pointsGained = 0
+
+    if (isFirstAttempt) {
+      const user = await pointsService.updateDayStreak(userId)
+      pointsGained = await pointsService.calculateModuleQuizPoints(moduleDifficulty, score, isFirstAttempt, user.dayStreak || 0)
+      await pointsService.addPointsForFirstAttempt(userId, pointsGained, 'module_quiz', quizId, moduleDifficulty)
+    }
+
+    return {
+      success: true,
+      message: pointsGained > 0 ? `Earned ${pointsGained} points!` : 'Quiz completed!',
+      data: {
+        expGained: 0, // Keep for compatibility
+        pointsGained
+      }
+    }
+  }, {
+    body: t.Object({
+      quizId: t.String(),
+      moduleDifficulty: t.Enum({ Easy: 'Easy', Intermediate: 'Intermediate', Advanced: 'Advanced' }),
+      score: t.Number(),
+      maxScore: t.Number(),
+      attemptNumber: t.Number(),
+      isFirstAttempt: t.Boolean()
+    })
+  })
+
+  .post('/award-exp/final-quiz', async ({ body, request, set }) => {
+    // Redirect to points endpoint
+    const userId = jwtService.getUserIdFromCookies(request)
+    if (!userId) {
+      set.status = 401
+      return { success: false, error: 'Authentication required' }
+    }    const { finalQuizId, score, maxScore, isFirstAttempt, difficulty = 'intermediate' } = body
+    let pointsGained = 0
+
+    if (isFirstAttempt) {
+      const user = await pointsService.updateDayStreak(userId)
+      pointsGained = await pointsService.calculateFinalQuizPoints(
+        score, 
+        difficulty as 'easy' | 'intermediate' | 'advanced',
+        isFirstAttempt, 
+        user.dayStreak || 0
+      )
+      await pointsService.addPointsForFirstAttempt(userId, pointsGained, 'final_quiz', finalQuizId)
+    }
+
+    return {
+      success: true,
+      message: pointsGained > 0 ? `Earned ${pointsGained} points!` : 'Final quiz completed!',
+      data: {
+        expGained: 0, // Keep for compatibility
+        pointsGained
+      }
+    }  }, {
+    body: t.Object({
+      finalQuizId: t.String(),
+      score: t.Number(),
+      maxScore: t.Number(),
+      isFirstAttempt: t.Boolean(),
+      difficulty: t.Optional(t.Union([t.Literal('easy'), t.Literal('intermediate'), t.Literal('advanced')]))
+    })
+  });

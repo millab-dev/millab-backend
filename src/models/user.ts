@@ -10,15 +10,16 @@ export interface User {
   birthdate: string
   socializationLocation: string
   email: string
-  phoneNumber: string
+  phoneNumber?: string // Make phone number optional
   isAdmin?: boolean // Admin flag - only true for admin users
-  // New fields for XP and progression system
-  currentExp?: number
-  level?: number
+  // Fields for progression system (points-based)
   dayStreak?: number
   lastActiveDate?: string // ISO date string for tracking day streaks
-  expHistory?: ExpGainRecord[] // Track where XP came from
   pointsHistory?: PointsGainRecord[] // Track where points came from
+  // Legacy fields (kept for backward compatibility, but deprecated)
+  currentExp?: number
+  level?: number
+  expHistory?: ExpGainRecord[] // Track where XP came from
   createdAt: string
   updatedAt: string
 }
@@ -38,11 +39,11 @@ export interface ExpGainRecord {
  * Record of points gains for tracking purposes
  */
 export interface PointsGainRecord {
-  source: 'module_quiz' | 'final_quiz'
-  sourceId: string // quiz ID, final quiz ID, etc.
+  source: 'module_quiz' | 'final_quiz' | 'section_read'
+  sourceId: string // quiz ID, final quiz ID, section ID, etc.
   pointsGained: number
   timestamp: string
-  difficulty?: 'Easy' | 'Intermediate' | 'Advanced' // For module quizzes
+  difficulty?: 'Easy' | 'Intermediate' | 'Advanced' // For module quizzes and sections
 }
 
 /**
@@ -56,6 +57,6 @@ export interface CreateUserData {
   birthdate: string
   socializationLocation: string
   email: string
-  phoneNumber: string
+  phoneNumber?: string // Make phone number optional
   password: string // Password is included here but not in the User model
 }
