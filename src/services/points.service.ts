@@ -31,33 +31,35 @@ export class PointsService {
      */    private async checkFirstAttempt(userId: string, source: 'module_quiz' | 'final_quiz' | 'section_read', sourceId: string): Promise<boolean> {
         try {
             if (!db) {
-                console.warn('Firebase not initialized, defaulting to false for first attempt check');
-                return false;
+                console.warn('Firebase not initialized, defaulting to true for first attempt check');
+                return true;
             }
 
             const userAttemptsRef = db.collection('userQuizAttempts').doc(userId);
             const userAttemptsDoc = await userAttemptsRef.get();
 
             if (!userAttemptsDoc.exists) {
-                // Initialize user attempts document
-                await userAttemptsRef.set({
-                    userId,
-                    attempts: {},
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                });
-                return true; // First attempt for this user
+                // No document exists, so it's definitely the first attempt
+                return true;
             }
 
             const userData = userAttemptsDoc.data();
             const attemptKey = `${source}_${sourceId}`;
             
             // Check if this specific quiz/section has been attempted before
-            return !userData?.attempts?.[attemptKey];
+            // If the attempt key exists, it means they've already attempted it
+            const hasAttempted = userData?.attempts?.[attemptKey];
+            console.log(`Checking first attempt for ${userId}, ${attemptKey}:`, {
+                documentExists: true,
+                hasAttempted: !!hasAttempted,
+                isFirstAttempt: !hasAttempted
+            });
+            
+            return !hasAttempted;
         } catch (error) {
             console.error('Error checking first attempt:', error);
-            // If there's an error, assume it's not the first attempt to be safe
-            return false;
+            // If there's an error, assume it's the first attempt to be safe
+            return true;
         }
     }
 
@@ -73,14 +75,36 @@ export class PointsService {
             const userAttemptsRef = db.collection('userQuizAttempts').doc(userId);
             const attemptKey = `${source}_${sourceId}`;
             
-            await userAttemptsRef.update({
-                [`attempts.${attemptKey}`]: {
-                    completedAt: new Date().toISOString(),
-                    source,
-                    sourceId
-                },
-                updatedAt: new Date().toISOString()
-            });
+            // Check if document exists first
+            const userAttemptsDoc = await userAttemptsRef.get();
+            
+            if (!userAttemptsDoc.exists) {
+                // Create the document with the attempt
+                await userAttemptsRef.set({
+                    userId,
+                    attempts: {
+                        [attemptKey]: {
+                            completedAt: new Date().toISOString(),
+                            source,
+                            sourceId
+                        }
+                    },
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                });
+                console.log(`Created new attempts document for user ${userId} with attempt ${attemptKey}`);
+            } else {
+                // Update existing document
+                await userAttemptsRef.update({
+                    [`attempts.${attemptKey}`]: {
+                        completedAt: new Date().toISOString(),
+                        source,
+                        sourceId
+                    },
+                    updatedAt: new Date().toISOString()
+                });
+                console.log(`Updated attempts document for user ${userId} with attempt ${attemptKey}`);
+            }
         } catch (error) {
             console.error('Error marking as attempted:', error);
             throw error;
