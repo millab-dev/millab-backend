@@ -236,6 +236,34 @@ export class QuizRepository {
             throw new Error(`Failed to get quizzes by difficulty: ${error}`);
         }
     }
+
+    /**
+     * Get quizzes by difficulty and language
+     */
+    async getQuizzesByDifficultyAndLanguage(difficulty: string, language: string): Promise<Quiz[]> {
+        try {
+            const db = this.getDb();
+            const querySnapshot = await db
+                .collection(COLLECTION_NAME)
+                .where("difficulty", "==", difficulty)
+                .where("language", "==", language)
+                .orderBy("createdAt", "desc")
+                .get();
+
+            const quizzes: Quiz[] = [];
+
+            querySnapshot.forEach((doc) => {
+                quizzes.push({
+                    id: doc.id,
+                    ...doc.data(),
+                } as Quiz);
+            });
+
+            return quizzes;
+        } catch (error) {
+            throw new Error(`Failed to get quizzes by difficulty and language: ${error}`);
+        }
+    }
 }
 
 // Export a singleton instance

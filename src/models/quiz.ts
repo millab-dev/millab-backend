@@ -5,6 +5,7 @@ export interface Quiz {
     isFinalQuiz: boolean;
     moduleId: string | undefined;
     difficulty: string | undefined;
+    language: string | undefined;
     questions: Question[];
 }
 

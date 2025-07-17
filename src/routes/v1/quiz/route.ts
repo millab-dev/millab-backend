@@ -18,6 +18,7 @@ const CreateQuizSchema = t.Object({
     isFinalQuiz: t.Boolean(),
     moduleId: t.Optional(t.String()),
     difficulty: t.Optional(t.String()),
+    language: t.Optional(t.String()),
     questions: t.Array(QuizQuestionSchema, { minItems: 1 }),
 });
 
@@ -27,6 +28,7 @@ const UpdateQuizSchema = t.Object({
     isFinalQuiz: t.Optional(t.Boolean()),
     moduleId: t.Optional(t.String()),
     difficulty: t.Optional(t.String()),
+    language: t.Optional(t.String()),
     questions: t.Optional(t.Array(QuizQuestionSchema, { minItems: 1 })),
 });
 
@@ -44,6 +46,7 @@ export const quizRoutes = new Elysia({ prefix: "/quizzes" })
                     ...body,
                     moduleId: body.moduleId || undefined,
                     difficulty: body.difficulty || undefined,
+                    language: body.language || undefined,
                 };
                 const quiz = await quizService.createQuiz(quizData);
                 set.status = 201;
@@ -395,6 +398,56 @@ export const quizRoutes = new Elysia({ prefix: "/quizzes" })
                 summary: "Get quizzes by difficulty",
                 description:
                     "Retrieve all quizzes with a specific difficulty level",
+                tags: ["Quiz"],
+            },
+        }
+    )
+
+    // Get quizzes by difficulty and language
+    .get(
+        "/difficulty/:difficulty/language/:language",
+        async ({ params, set }) => {
+            try {
+                const quizzes = await quizService.getQuizzesByDifficultyAndLanguage(
+                    params.difficulty,
+                    params.language
+                );
+
+                if (quizzes.length == 0) {
+                    set.status = 404;
+                    return {
+                        success: false,
+                        message: "Quizzes not found",
+                        data: null,
+                    };
+                }
+
+                return {
+                    success: true,
+                    message: "Quizzes retrieved successfully",
+                    data: quizzes,
+                };
+            } catch (error) {
+                set.status = 500;
+                return {
+                    success: false,
+                    message:
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to get quizzes by difficulty and language",
+                    data: null,
+                };
+            }
+        },
+        {
+            params: t.Object({
+                difficulty: t.String(),
+                language: t.String(),
+            }),
+            detail: {
+                summary: "Get quizzes by difficulty and language",
+                description:
+                    "Retrieve all quizzes with a specific difficulty level and language",
                 tags: ["Quiz"],
             },
         }

@@ -206,6 +206,25 @@ export class QuizService {
     }
 
     /**
+     * Get quizzes by difficulty and language
+     */
+    async getQuizzesByDifficultyAndLanguage(difficulty: string, language: string): Promise<Quiz[]> {
+        try {
+            if (!difficulty || difficulty.trim() === "") {
+                throw new Error("Difficulty is required");
+            }
+
+            if (!language || language.trim() === "") {
+                throw new Error("Language is required");
+            }
+
+            return await quizRepository.getQuizzesByDifficultyAndLanguage(difficulty, language);
+        } catch (error) {
+            throw new Error(`Failed to get quizzes by difficulty and language: ${error}`);
+        }
+    }
+
+    /**
      * Calculate quiz score
      */
     calculateScore(quiz: Quiz, userAnswers: { [questionIndex: number]: number }): {
