@@ -83,6 +83,7 @@ export class AppSettingsRepository {
     const now = new Date().toISOString();
     const defaultSettings = {
       downloadAllPdfUrl: '',
+      downloadAllPdfUrlEn: '',
       createdAt: now,
       updatedAt: now,
     };

@@ -31,21 +31,23 @@ export class ModuleService {
   async getActiveModules(): Promise<Module[]> {
     return await moduleRepository.getActiveModules();
   }  /**
-   * Get modules with user progress
+   * Get modules with user progress and validate data integrity
    */  
   async getModulesWithProgress(userId: string): Promise<(Module & { progress?: UserProgress | null })[]> {
     const modules = await moduleRepository.getActiveModules();
-    const userProgressList = await moduleRepository.getAllUserProgress(userId);
     
-    // Create a map for quick lookup
-    const progressMap = new Map<string, UserProgress>();
-    userProgressList.forEach((progress: UserProgress) => {
-      progressMap.set(progress.moduleId, progress);
-    });    // Combine modules with their progress
-    return modules.map(module => ({
-      ...module,
-      progress: progressMap.get(module.id) || null,
-    }));
+    // Validate and get progress for each module
+    const modulesWithProgress = await Promise.all(
+      modules.map(async (module) => {
+        const progress = await moduleRepository.validateAndFixUserProgress(userId, module.id);
+        return {
+          ...module,
+          progress,
+        };
+      })
+    );
+
+    return modulesWithProgress;
   }
 
   /**
@@ -79,13 +81,14 @@ export class ModuleService {
     return await moduleRepository.getModuleById(id);
   }
   /**
-   * Get module with user progress
+   * Get module with user progress and validate data integrity
    */
   async getModuleWithProgress(moduleId: string, userId: string): Promise<(Module & { progress?: UserProgress | null }) | null> {
     const module = await moduleRepository.getModuleById(moduleId);
     if (!module) return null;
 
-    const progress = await moduleRepository.getUserProgress(userId, moduleId);
+    // Validate and fix progress data integrity
+    const progress = await moduleRepository.validateAndFixUserProgress(userId, moduleId);
     
     return {
       ...module,

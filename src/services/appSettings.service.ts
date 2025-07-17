@@ -25,11 +25,18 @@ export class AppSettingsService {
    */
   async updateSettings(settingsData: UpdateAppSettingsData): Promise<AppSettings | null> {
     try {
-      // Validate PDF URL if provided
+      // Validate URLs if provided (removed PDF constraint - can be any link)
       if (settingsData.downloadAllPdfUrl && settingsData.downloadAllPdfUrl.trim()) {
-        const urlPattern = /^https?:\/\/.+\.(pdf)$/i;
+        const urlPattern = /^https?:\/\/.+$/i;
         if (!urlPattern.test(settingsData.downloadAllPdfUrl.trim())) {
-          throw new Error('Download All PDF URL must be a valid PDF URL');
+          throw new Error('Download All URL (Indonesian) must be a valid URL');
+        }
+      }
+
+      if (settingsData.downloadAllPdfUrlEn && settingsData.downloadAllPdfUrlEn.trim()) {
+        const urlPattern = /^https?:\/\/.+$/i;
+        if (!urlPattern.test(settingsData.downloadAllPdfUrlEn.trim())) {
+          throw new Error('Download All URL (English) must be a valid URL');
         }
       }
 
@@ -49,6 +56,22 @@ export class AppSettingsService {
       return settings?.downloadAllPdfUrl || null;
     } catch (error) {
       console.error('Error getting download all PDF URL:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get download all URL based on language
+   */
+  async getDownloadAllUrl(language: 'id' | 'en' = 'id'): Promise<string | null> {
+    try {
+      const settings = await this.getSettings();
+      if (language === 'en') {
+        return settings?.downloadAllPdfUrlEn || settings?.downloadAllPdfUrl || null;
+      }
+      return settings?.downloadAllPdfUrl || null;
+    } catch (error) {
+      console.error('Error getting download all URL:', error);
       return null;
     }
   }

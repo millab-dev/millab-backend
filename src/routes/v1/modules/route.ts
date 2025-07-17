@@ -96,10 +96,11 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
       };
     }
   })
-  .post("/:id/sections/:sectionId/complete", async ({ params: { id, sectionId }, request }) => {
+  .post("/:id/sections/:sectionId/complete", async ({ params: { id, sectionId }, request, set }) => {
     try {
       const userId = jwtService.getUserIdFromCookies(request);
       if (!userId) {
+        set.status = 401;
         return {
           success: false,
           error: "Authentication required",
@@ -113,6 +114,20 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
       };
     } catch (error: any) {
       console.error("Mark section completed error:", error);
+      
+      // Set appropriate HTTP status codes for different error types
+      if (error.message?.includes("already completed")) {
+        set.status = 400;
+      } else if (error.message?.includes("not found")) {
+        set.status = 404;
+      } else if (error.message?.includes("not active")) {
+        set.status = 400;
+      } else if (error.message?.includes("Cannot complete more sections")) {
+        set.status = 400;
+      } else {
+        set.status = 500;
+      }
+      
       return {
         success: false,
         error: error.message || "Failed to mark section as completed",
@@ -259,27 +274,37 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
       };
     }  }, {    body: t.Object({
       title: t.String({ minLength: 1 }),
+      titleEn: t.Optional(t.String()),
       description: t.String({ minLength: 1 }),
+      descriptionEn: t.Optional(t.String()),
       difficulty: t.Union([t.Literal('Easy'), t.Literal('Intermediate'), t.Literal('Advanced')]),
       order: t.Number({ minimum: 0 }),
       pdfUrl: t.Optional(t.String()),
+      pdfUrlEn: t.Optional(t.String()),
       sections: t.Array(t.Object({
         title: t.String({ minLength: 1 }),
+        titleEn: t.Optional(t.String()),
         content: t.String({ minLength: 1 }),
+        contentEn: t.Optional(t.String()),
         duration: t.String({ minLength: 1 }),
         order: t.Number({ minimum: 0 }),
         isActive: t.Boolean(),
       })),quiz: t.Object({
         title: t.String({ minLength: 1 }),
+        titleEn: t.Optional(t.String()),
         description: t.String({ minLength: 1 }),
+        descriptionEn: t.Optional(t.String()),
         duration: t.String({ minLength: 1 }),
         totalQuestions: t.Number({ minimum: 1 }),
         questions: t.Array(t.Object({
           question: t.String({ minLength: 1 }),
+          questionEn: t.Optional(t.String()),
           type: t.Union([t.Literal('multiple-choice'), t.Literal('true-false')]),
           options: t.Array(t.String({ minLength: 1 })),
+          optionsEn: t.Optional(t.Array(t.String())),
           correctAnswer: t.Number({ minimum: 0 }),
           explanation: t.Optional(t.String()),
+          explanationEn: t.Optional(t.String()),
           order: t.Number({ minimum: 1 }),
         }), { minItems: 1 }),
         isActive: t.Boolean(),
@@ -302,27 +327,37 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
       };
     }  }, {    body: t.Object({
       title: t.Optional(t.String({ minLength: 1 })),
+      titleEn: t.Optional(t.String()),
       description: t.Optional(t.String({ minLength: 1 })),
+      descriptionEn: t.Optional(t.String()),
       difficulty: t.Optional(t.Union([t.Literal('Easy'), t.Literal('Intermediate'), t.Literal('Advanced')])),
       order: t.Optional(t.Number({ minimum: 0 })),
       pdfUrl: t.Optional(t.String()),
+      pdfUrlEn: t.Optional(t.String()),
       sections: t.Optional(t.Array(t.Object({
         title: t.String({ minLength: 1 }),
+        titleEn: t.Optional(t.String()),
         content: t.String({ minLength: 1 }),
+        contentEn: t.Optional(t.String()),
         duration: t.String({ minLength: 1 }),
         order: t.Number({ minimum: 0 }),
         isActive: t.Boolean(),
       }))),quiz: t.Optional(t.Object({
         title: t.String({ minLength: 1 }),
+        titleEn: t.Optional(t.String()),
         description: t.String({ minLength: 1 }),
+        descriptionEn: t.Optional(t.String()),
         duration: t.String({ minLength: 1 }),
         totalQuestions: t.Number({ minimum: 1 }),
         questions: t.Optional(t.Array(t.Object({
           question: t.String({ minLength: 1 }),
+          questionEn: t.Optional(t.String()),
           type: t.Union([t.Literal('multiple-choice'), t.Literal('true-false')]),
           options: t.Array(t.String({ minLength: 1 })),
+          optionsEn: t.Optional(t.Array(t.String())),
           correctAnswer: t.Number({ minimum: 0 }),
           explanation: t.Optional(t.String()),
+          explanationEn: t.Optional(t.String()),
           order: t.Number({ minimum: 1 }),
         }), { minItems: 1 })),
         isActive: t.Boolean(),
