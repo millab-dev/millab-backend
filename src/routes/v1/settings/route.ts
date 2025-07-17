@@ -60,14 +60,16 @@ export const appSettingsRoutes = new Elysia({ prefix: '/settings' })
     }
   }, {
     body: t.Object({
-      downloadAllPdfUrl: t.Optional(t.String())
+      downloadAllPdfUrl: t.Optional(t.String()),
+      downloadAllPdfUrlEn: t.Optional(t.String())
     })
   })
 
-  // Get download all PDF URL (public for authenticated users)
-  .get('/download-all-pdf-url', async ({ set }) => {
+  // Get download all URL (public for authenticated users)
+  .get('/download-all-pdf-url', async ({ set, query }) => {
     try {
-      const pdfUrl = await appSettingsService.getDownloadAllPdfUrl();
+      const language = query.lang as 'id' | 'en' || 'id';
+      const pdfUrl = await appSettingsService.getDownloadAllUrl(language);
       
       const response: ApiResponse<any> = {
         success: true,
@@ -76,11 +78,11 @@ export const appSettingsRoutes = new Elysia({ prefix: '/settings' })
 
       return response;
     } catch (error) {
-      console.error('Error fetching download all PDF URL:', error);
+      console.error('Error fetching download all URL:', error);
       set.status = 500;
       const response: ApiResponse<null> = {
         success: false,
-        error: 'Failed to fetch download all PDF URL'
+        error: 'Failed to fetch download all URL'
       };
       return response;
     }

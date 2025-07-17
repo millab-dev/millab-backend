@@ -309,32 +309,52 @@ export class ModuleRepository {
   }
 
   /**
-   * Mark section as completed
+   * Mark section as completed with strict validation
    */
   async markSectionCompleted(userId: string, moduleId: string, sectionId: string): Promise<UserProgress> {
     if (!db) {
       throw new Error("Database not initialized");
     }
 
-    const progress = await this.getUserProgress(userId, moduleId);
-    
-    let completedSections: string[];
-    if (progress) {
-      completedSections = progress.completedSections.includes(sectionId) 
-        ? progress.completedSections 
-        : [...progress.completedSections, sectionId];
-    } else {
-      completedSections = [sectionId];
-    }
-
-    // Get module to calculate completion percentage
+    // Get module to validate section exists and is active
     const module = await this.getModuleById(moduleId);
     if (!module) {
       throw new Error("Module not found");
     }
 
+    // Validate that the section exists and is active
+    const section = module.sections.find(s => s.id === sectionId && s.isActive);
+    if (!section) {
+      throw new Error("Section not found or is not active");
+    }
+
+    // Get current user progress
+    const progress = await this.getUserProgress(userId, moduleId);
+    
+    // STRICT CHECK: If section is already completed, reject the request
+    if (progress && progress.completedSections.includes(sectionId)) {
+      throw new Error("Section is already completed");
+    }
+
+    // Calculate new completed sections
+    let completedSections: string[];
+    if (progress) {
+      completedSections = [...progress.completedSections, sectionId];
+    } else {
+      completedSections = [sectionId];
+    }
+
+    // Get total active sections for completion percentage calculation
     const totalSections = module.sections.filter(s => s.isActive).length;
-    const completionPercentage = Math.round((completedSections.length / totalSections) * 100);    const progressData = {
+    
+    // STRICT CHECK: Ensure completion percentage cannot exceed 100%
+    if (completedSections.length > totalSections) {
+      throw new Error("Cannot complete more sections than exist in the module");
+    }
+
+    const completionPercentage = Math.min(100, Math.round((completedSections.length / totalSections) * 100));
+
+    const progressData = {
       userId,
       moduleId,
       completedSections,
@@ -349,27 +369,120 @@ export class ModuleRepository {
   }
 
   /**
-   * Save quiz result
+   * Save quiz result with strict validation
    */
   async saveQuizResult(userId: string, moduleId: string, score: number): Promise<UserProgress> {
     if (!db) {
       throw new Error("Database not initialized");
     }
 
+    // Get module to validate and recalculate completion percentage
+    const module = await this.getModuleById(moduleId);
+    if (!module) {
+      throw new Error("Module not found");
+    }
+
     const progress = await this.getUserProgress(userId, moduleId);
+    
+    // Calculate completion percentage properly
+    const completedSections = progress?.completedSections || [];
+    const totalSections = module.sections.filter(s => s.isActive).length;
+    let completionPercentage = Math.min(100, Math.round((completedSections.length / totalSections) * 100));
+
+    // If quiz is completed and all sections are done, ensure 100%
+    const allSectionsCompleted = completedSections.length === totalSections;
+    if (allSectionsCompleted && module.quiz.isActive) {
+      completionPercentage = 100;
+    }
     
     const progressData = {
       userId,
       moduleId,
-      completedSections: progress?.completedSections || [],
+      completedSections,
       quizCompleted: true,
       quizScore: score,
       quizAttempts: (progress?.quizAttempts || 0) + 1,
-      completionPercentage: progress?.completionPercentage || 0,
+      completionPercentage,
       lastAccessedAt: Timestamp.now().toDate().toISOString(),
     };
 
     return this.saveUserProgress(progressData);
+  }
+
+  /**
+   * Validate and fix user progress data integrity
+   */
+  async validateAndFixUserProgress(userId: string, moduleId: string): Promise<UserProgress | null> {
+    if (!db) {
+      throw new Error("Database not initialized");
+    }
+
+    const module = await this.getModuleById(moduleId);
+    if (!module) {
+      return null;
+    }
+
+    const progress = await this.getUserProgress(userId, moduleId);
+    if (!progress) {
+      return null;
+    }
+
+    let needsUpdate = false;
+    const validSectionIds = module.sections.filter(s => s.isActive).map(s => s.id);
+    
+    // Remove any completed sections that no longer exist or are inactive
+    const validCompletedSections = progress.completedSections.filter(sectionId => 
+      validSectionIds.includes(sectionId)
+    );
+
+    if (validCompletedSections.length !== progress.completedSections.length) {
+      needsUpdate = true;
+    }
+
+    // Recalculate completion percentage
+    const totalSections = validSectionIds.length;
+    const correctCompletionPercentage = totalSections > 0 
+      ? Math.min(100, Math.round((validCompletedSections.length / totalSections) * 100))
+      : 0;
+
+    if (progress.completionPercentage !== correctCompletionPercentage) {
+      needsUpdate = true;
+    }
+
+    // If all sections are completed and quiz is completed, ensure 100%
+    if (validCompletedSections.length === totalSections && progress.quizCompleted && module.quiz.isActive) {
+      if (progress.completionPercentage !== 100) {
+        needsUpdate = true;
+      }
+    }
+
+    if (needsUpdate) {
+      const correctedProgressData = {
+        userId,
+        moduleId,
+        completedSections: validCompletedSections,
+        quizCompleted: progress.quizCompleted,
+        quizScore: progress.quizScore,
+        quizAttempts: progress.quizAttempts,
+        completionPercentage: correctCompletionPercentage,
+        lastAccessedAt: Timestamp.now().toDate().toISOString(),
+      };
+
+      console.log(`Fixing user progress for user ${userId}, module ${moduleId}:`, {
+        old: {
+          completedSections: progress.completedSections,
+          completionPercentage: progress.completionPercentage
+        },
+        new: {
+          completedSections: validCompletedSections,
+          completionPercentage: correctCompletionPercentage
+        }
+      });
+
+      return this.saveUserProgress(correctedProgressData);
+    }
+
+    return progress;
   }
 }
 

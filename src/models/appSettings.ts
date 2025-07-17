@@ -3,7 +3,8 @@
  */
 export interface AppSettings {
   id: string;
-  downloadAllPdfUrl?: string; // URL for "Download All" PDF functionality
+  downloadAllPdfUrl?: string; // URL for "Download All" functionality (Indonesian)
+  downloadAllPdfUrlEn?: string; // URL for "Download All" functionality (English)
   createdAt: string;
   updatedAt: string;
 }
@@ -13,4 +14,5 @@ export interface AppSettings {
  */
 export interface UpdateAppSettingsData {
   downloadAllPdfUrl?: string;
+  downloadAllPdfUrlEn?: string;
 }
