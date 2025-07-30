@@ -8,19 +8,12 @@ import { UserReadingStateService } from "../../../services/userReadingState.serv
 const userReadingStateService = new UserReadingStateService();
 
 export const moduleRoutes = new Elysia({ prefix: "/modules" })
-  // Public routes (authenticated users)
-  .use(authMiddleware)
+  // Public routes (no auth required, but supports auth users)
   .get("/", async ({ request }) => {
     try {
       const userId = jwtService.getUserIdFromCookies(request);
-      if (!userId) {
-        return {
-          success: false,
-          error: "Authentication required",
-        };
-      }
-
-      const modules = await moduleService.getModulesWithProgress(userId);
+      
+      const modules = await moduleService.getModulesWithProgress(userId || undefined);
       return {
         success: true,
         data: modules,
@@ -34,18 +27,12 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
     }
   })
 
-  // Get homepage modules (order 1, 5, 11)
+  // Get homepage modules (public access)
   .get("/homepage", async ({ request }) => {
     try {
       const userId = jwtService.getUserIdFromCookies(request);
-      if (!userId) {
-        return {
-          success: false,
-          error: "Authentication required",
-        };
-      }
-
-      const modules = await moduleService.getHomepageModules(userId);
+      
+      const modules = await moduleService.getHomepageModules(userId || undefined);
       return {
         success: true,
         data: modules,
@@ -61,14 +48,8 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
   .get("/:id", async ({ params: { id }, request }) => {
     try {
       const userId = jwtService.getUserIdFromCookies(request);
-      if (!userId) {
-        return {
-          success: false,
-          error: "Authentication required",
-        };
-      }
-
-      const module = await moduleService.getModuleWithProgress(id, userId);
+      
+      const module = await moduleService.getModuleWithProgress(id, userId || undefined);
       if (!module) {
         return {
           success: false,
@@ -76,12 +57,14 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
         };
       }
 
-      // Track module access for reading state
-      try {
-        await userReadingStateService.updateUserModuleAccess(userId, id);
-      } catch (error) {
-        // Don't fail the request if tracking fails
-        console.error("Failed to track module access:", error);
+      // Track module access for reading state (only if user is authenticated)
+      if (userId) {
+        try {
+          await userReadingStateService.updateUserModuleAccess(userId, id);
+        } catch (error) {
+          // Don't fail the request if tracking fails
+          console.error("Failed to track module access:", error);
+        }
       }
 
       return {
@@ -96,6 +79,9 @@ export const moduleRoutes = new Elysia({ prefix: "/modules" })
       };
     }
   })
+  
+  // Auth required routes
+  .use(authMiddleware)
   .post("/:id/sections/:sectionId/complete", async ({ params: { id, sectionId }, request, set }) => {
     try {
       const userId = jwtService.getUserIdFromCookies(request);

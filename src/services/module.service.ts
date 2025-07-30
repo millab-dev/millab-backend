@@ -32,11 +32,20 @@ export class ModuleService {
     return await moduleRepository.getActiveModules();
   }  /**
    * Get modules with user progress and validate data integrity
+   * If userId is not provided (public access), returns modules with null progress
    */  
-  async getModulesWithProgress(userId: string): Promise<(Module & { progress?: UserProgress | null })[]> {
+  async getModulesWithProgress(userId?: string): Promise<(Module & { progress?: UserProgress | null })[]> {
     const modules = await moduleRepository.getActiveModules();
     
-    // Validate and get progress for each module
+    // If no userId provided (public access), return modules with null progress
+    if (!userId) {
+      return modules.map(module => ({
+        ...module,
+        progress: null,
+      }));
+    }
+    
+    // Validate and get progress for each module (authenticated user)
     const modulesWithProgress = await Promise.all(
       modules.map(async (module) => {
         const progress = await moduleRepository.validateAndFixUserProgress(userId, module.id);
@@ -52,12 +61,26 @@ export class ModuleService {
 
   /**
    * Get homepage modules (order 1, 5, 11) with user progress
+   * If userId is not provided (public access), returns modules with null progress
    */
-  async getHomepageModules(userId: string): Promise<(Module & { progress?: UserProgress | null })[]> {
+  async getHomepageModules(userId?: string): Promise<(Module & { progress?: UserProgress | null })[]> {
     const modules = await moduleRepository.getActiveModules();
-    const userProgressList = await moduleRepository.getAllUserProgress(userId);
     
-    const homepageModules = modules
+    // Filter homepage modules (you may need to adjust this logic based on your requirements)
+    const homepageModules = modules; // Add your filtering logic here if needed
+    
+    // If no userId provided (public access), return modules with null progress
+    if (!userId) {
+      return homepageModules
+        .map(module => ({
+          ...module,
+          progress: null,
+        }))
+        .sort((a, b) => a.order - b.order);
+    }
+    
+    // For authenticated users, get their progress
+    const userProgressList = await moduleRepository.getAllUserProgress(userId);
     
     // Create a map for quick lookup
     const progressMap = new Map<string, UserProgress>();
@@ -82,12 +105,21 @@ export class ModuleService {
   }
   /**
    * Get module with user progress and validate data integrity
+   * If userId is not provided (public access), returns module with null progress
    */
-  async getModuleWithProgress(moduleId: string, userId: string): Promise<(Module & { progress?: UserProgress | null }) | null> {
+  async getModuleWithProgress(moduleId: string, userId?: string): Promise<(Module & { progress?: UserProgress | null }) | null> {
     const module = await moduleRepository.getModuleById(moduleId);
     if (!module) return null;
 
-    // Validate and fix progress data integrity
+    // If no userId provided (public access), return module with null progress
+    if (!userId) {
+      return {
+        ...module,
+        progress: null,
+      };
+    }
+
+    // Validate and fix progress data integrity for authenticated users
     const progress = await moduleRepository.validateAndFixUserProgress(userId, moduleId);
     
     return {
